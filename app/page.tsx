@@ -1,10 +1,12 @@
+import { StorageStatusCard } from "./components/storage-status-card";
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-950/70 backdrop-blur">
         <div className="mx-auto flex max-w-4xl flex-col gap-2 px-6 py-12">
           <p className="text-sm uppercase tracking-[0.4em] text-slate-400">
-            BetweenUs · Phase 1
+            BetweenUs · Phase 2
           </p>
           <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
             Real-time speech becomes readable conversation.
@@ -46,12 +48,12 @@ export default function Home() {
 
         <section className="grid gap-6 md:grid-cols-2">
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-8">
-            <h2 className="text-xl font-semibold text-white">What’s ready</h2>
+            <h2 className="text-xl font-semibold text-white">What’s ready now</h2>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
-              <li>✅ Next.js 16 + App Router with Tailwind CSS</li>
-              <li>✅ TypeScript-first tooling and linting baseline</li>
-              <li>✅ Placeholder env wiring for Deepgram + Vercel secrets</li>
-              <li>✅ README with setup, testing, and phase checklist</li>
+              <li>✅ Installable PWA with manifest + themed icons</li>
+              <li>✅ Service worker caching for the conversation shell</li>
+              <li>✅ IndexedDB + localStorage scaffolding for training + preferences</li>
+              <li>✅ Phase-aware homepage and README updates</li>
             </ul>
           </div>
           <div className="rounded-3xl border border-emerald-700/40 bg-emerald-500/10 p-8 text-emerald-200">
@@ -59,23 +61,30 @@ export default function Home() {
               Up next
             </h2>
             <p className="mt-4 text-sm leading-relaxed">
-              When you’re ready, we’ll move into Phase 2 to add PWA scaffolding,
-              offline storage, and the first slices of the training experience.
+              Phases 3–4 will layer in the full training workflow — phrase deck,
+              recording controls, IndexedDB persistence, and export packaging.
             </p>
           </div>
         </section>
 
+        <StorageStatusCard />
+
         <section className="rounded-3xl border border-slate-800 bg-slate-950/60 p-8">
           <h2 className="text-xl font-semibold text-white">Test checklist</h2>
           <ol className="mt-4 space-y-3 text-sm text-slate-300">
-            <li>1. Install dependencies with <code>npm install</code>.</li>
-            <li>2. Run <code>npm run dev</code> and open the app at localhost:3000.</li>
             <li>
-              3. Verify the page renders the BetweenUs overview with phase
-              highlights.
+              1. Install dependencies with <code>npm install</code>.
             </li>
             <li>
-              4. Prepare Vercel environment variables using the README guidance.
+              2. Run <code>npm run dev</code> and open the forwarded preview URL.
+            </li>
+            <li>
+              3. Use your browser’s install button (or “Add to Home Screen” on
+              Android Firefox) — confirm the standalone app launches.
+            </li>
+            <li>
+              4. Toggle offline mode: the shell should remain available, with the
+              slider and storage status still visible.
             </li>
           </ol>
         </section>

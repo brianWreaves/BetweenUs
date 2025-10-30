@@ -4,11 +4,12 @@
 
 BetweenUs is a real-time speech-to-text companion built for people living with Motor Neurone Disease (MND). Spoken words are transcribed on-device and shown as large, flippable text blocks so conversation partners can keep up with face-to-face chats.
 
-> **Phase 1 status (Foundation & Environment Setup)**  
-> ✅ Next.js 16 + App Router scaffold  
-> ✅ TypeScript, Tailwind CSS, ESLint baseline  
-> ✅ Environment variable placeholders for Deepgram + Vercel  
-> ✅ Documentation for local/Vercel setup and phase workflow
+> **Phase 2 status (PWA + Storage Architecture)**  
+> ✅ Installable PWA shell (manifest, icons, service worker)  
+> ✅ IndexedDB + localStorage scaffolding for training data and preferences  
+> ✅ Interactive font-size preview wired to persisted preferences  
+> ✅ Training export packaging helper (manifest, transcripts, audio stubs)  
+> ✅ README + landing page refreshed with new testing steps
 
 ---
 
@@ -41,7 +42,14 @@ Roadmap phases are tracked from the [PRD](./docs/PRD.md) and organised into GitH
    ```bash
    npm run dev
    ```
-4. Open [http://localhost:3000](http://localhost:3000) and confirm the Phase 1 landing content appears.
+4. Open the forwarded preview link (or `http://localhost:3000` if running locally) and confirm the Phase 2 overview with storage status renders.
+
+### PWA & storage smoke test
+
+1. Look for the install prompt in Firefox or use the browser menu → “Install BetweenUs”.  
+2. After installing, relaunch the standalone app and confirm the landing screen loads.  
+3. Toggle the “Message size preview” slider — the percentage and preview text should persist on refresh.  
+4. Switch your device/DevTools to offline mode; the page should still load with cached assets and stored preferences.
 
 ### Available npm scripts
 
@@ -60,8 +68,9 @@ Roadmap phases are tracked from the [PRD](./docs/PRD.md) and organised into GitH
 2. **Set required environment variables** under “Settings → Environment Variables”:
    - `DEEPGRAM_API_KEY`
    - `NEXT_PUBLIC_APP_ENV` (`preview` for Preview, `production` for Production)
-3. **Protect secrets** by storing the Deepgram key only in Vercel (do not commit).
-4. **Trigger a deployment** by pushing to `main` (Vercel auto-builds every commit).
+3. **Enable the “Installable” preview** by ensuring the generated `manifest.webmanifest` appears under “Settings → Functions → Headers”.
+4. **Protect secrets** by storing the Deepgram key only in Vercel (do not commit).
+5. **Trigger a deployment** by pushing to `main` (Vercel auto-builds every commit).
 
 > _Tip:_ invite collaborators through Vercel to allow access to logs and environment edits.
 
@@ -79,7 +88,7 @@ The development plan is structured as 14 MVP phases. Each phase follows the same
 
 | Phase | Focus                                             |
 | ----- | ------------------------------------------------- |
-| 2     | PWA shell, IndexedDB/localStorage scaffolding     |
+| 2     | ✅ Done — PWA shell, storage scaffolding           |
 | 3–4   | Training UI, audio capture, ZIP export            |
 | 5–8   | Conversation surface, Deepgram streaming, flip UX |
 | 9–11  | Orientation logic, dotted separators, notifications |
@@ -92,8 +101,11 @@ Each phase will raise/close GitHub issues and PRs so the full history stays tran
 
 ```
 app/               # Next.js App Router routes, layouts, and styles
-public/            # Static assets (icons, manifest, etc.)
+app/components/    # Client components shared across routes
+app/hooks/         # React client hooks (PWA/storage integration)
 docs/              # Product requirements, decisions, and user-facing notes
+lib/storage/       # IndexedDB + preference utilities and export helpers
+public/            # Static assets (icons, manifest, service worker)
 .env.local.example # Template for local environment variables
 ```
 
@@ -103,13 +115,15 @@ Additional folders (e.g., `app/(training)` or `packages/speech`) will be introdu
 
 ## Testing expectations
 
-During Phase 1 we rely on manual verification:
+Current manual checklist:
 
-- Page renders without console errors in Firefox (Android or Desktop).
-- `npm run lint` passes.
-- Vercel preview deploy succeeds using the default landing page.
+- Landing page renders without console errors in Firefox (Android/Desktop).  
+- `npm run lint` and `npm run build` succeed.  
+- PWA installation succeeds and launches in standalone mode.  
+- Offline mode still displays the cached shell with stored font-size preference.  
+- `prepareTrainingExportPackage` returns manifests/transcripts matching stored phrases.
 
-Later phases add automated tests (unit/integration) around transcription flows, device orientation behaviour, and data export integrity.
+Upcoming phases will layer automated tests around transcription flows, device orientation behaviour, and data export integrity.
 
 ---
 
