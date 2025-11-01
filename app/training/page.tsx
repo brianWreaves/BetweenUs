@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { getPhraseDeck, TrainingPhrase } from "@/lib/training/phrase-deck";
 import { usePreferences } from "@/app/hooks/use-preferences";
@@ -43,12 +43,6 @@ function TrainingHeader({
               : "Tap record to begin"}
         </p>
       </div>
-      <Link
-        href="/"
-        className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
-      >
-        Exit session
-      </Link>
     </header>
   );
 }
@@ -77,37 +71,38 @@ function TrainingFooter({
   canAdvance,
   onRecordToggle,
   onNext,
-  onReRecord,
 }: {
   state: SessionState;
   canAdvance: boolean;
   onRecordToggle: () => void;
   onNext: () => void;
-  onReRecord: () => void;
 }) {
-  const isRecording = state === "recording";
+  const label =
+    state === "recording"
+      ? "Stop"
+      : state === "completed"
+        ? "Re-record"
+        : "Record";
 
   return (
     <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 px-6 py-6">
-      <button
-        type="button"
-        className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
-        onClick={onReRecord}
-        disabled={state === "idle"}
+      <Link
+        href="/"
+        className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
       >
-        Re-record
-      </button>
+        Exit training
+      </Link>
       <button
         type="button"
         className={cn(
           "rounded-full px-6 py-3 text-sm font-semibold transition",
-          isRecording
+          state === "recording"
             ? "bg-rose-600 text-white hover:bg-rose-500"
             : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
         )}
         onClick={onRecordToggle}
       >
-        {isRecording ? "Stop" : "Record"}
+        {label}
       </button>
       <button
         type="button"
@@ -123,14 +118,15 @@ function TrainingFooter({
 
 export default function TrainingPage() {
   const [preferences, updatePreferences] = usePreferences();
-  const [sessionState, setSessionState] = useState<SessionState>("idle");
-  const [hasCounted, setHasCounted] = useState(false);
-
   useEffect(() => {
     if ((preferences.lastPhaseCompleted ?? 1) < 3) {
       updatePreferences({ lastPhaseCompleted: 3 });
     }
   }, [preferences.lastPhaseCompleted, updatePreferences]);
+
+  if ((preferences.lastPhaseCompleted ?? 1) < 3) {
+    updatePreferences({ lastPhaseCompleted: 3 });
+  }
 
   const currentIndex = useMemo(() => {
     const stored = preferences.trainingPhraseIndex ?? 0;
@@ -138,28 +134,31 @@ export default function TrainingPage() {
   }, [preferences.trainingPhraseIndex]);
 
   const currentPhrase = phrases[currentIndex] ?? phrases[0];
-
-  const resetCompletionForCurrent = () => {
-    if (hasCounted) {
-      updatePreferences((current) => ({
-        trainingCompletedCount: Math.max(0, current.trainingCompletedCount - 1),
-      }));
-      setHasCounted(false);
-    }
-  };
+  const sessionState = preferences.trainingStage ?? "idle";
+  const hasCounted = preferences.trainingHasCounted ?? false;
 
   const handleRecordToggle = () => {
     if (sessionState === "recording") {
-      if (!hasCounted) {
-        updatePreferences((current) => ({
-          trainingCompletedCount: current.trainingCompletedCount + 1,
-        }));
-        setHasCounted(true);
-      }
-      setSessionState("completed");
+      updatePreferences((current) => ({
+        trainingCompletedCount: hasCounted
+          ? current.trainingCompletedCount
+          : current.trainingCompletedCount + 1,
+        trainingStage: "completed",
+        trainingHasCounted: true,
+      }));
+    } else if (sessionState === "completed") {
+      updatePreferences((current) => ({
+        trainingCompletedCount: hasCounted
+          ? Math.max(0, current.trainingCompletedCount - 1)
+          : current.trainingCompletedCount,
+        trainingStage: "recording",
+        trainingHasCounted: false,
+      }));
     } else {
-      resetCompletionForCurrent();
-      setSessionState("recording");
+      updatePreferences({
+        trainingStage: "recording",
+        trainingHasCounted: false,
+      });
     }
   };
 
@@ -168,14 +167,11 @@ export default function TrainingPage() {
       return;
     }
     const nextIndex = computeNextIndex(currentIndex);
-    setSessionState("idle");
-    setHasCounted(false);
-    updatePreferences({ trainingPhraseIndex: nextIndex });
-  };
-
-  const handleReRecord = () => {
-    resetCompletionForCurrent();
-    setSessionState("recording");
+    updatePreferences({
+      trainingPhraseIndex: nextIndex,
+      trainingStage: "idle",
+      trainingHasCounted: false,
+    });
   };
 
   const canAdvance = hasCounted && sessionState === "completed";
@@ -193,7 +189,6 @@ export default function TrainingPage() {
         canAdvance={canAdvance}
         onRecordToggle={handleRecordToggle}
         onNext={handleNextPhrase}
-        onReRecord={handleReRecord}
       />
     </div>
   );

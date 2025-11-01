@@ -7,6 +7,8 @@ export type Preferences = {
   trainingPhraseIndex: number;
   trainingCompletedCount: number;
   preferredRegion?: string | null;
+  trainingStage: "idle" | "recording" | "completed";
+  trainingHasCounted: boolean;
 };
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -18,6 +20,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   trainingPhraseIndex: 0,
   trainingCompletedCount: 0,
   preferredRegion: null,
+  trainingStage: "idle",
+  trainingHasCounted: false,
 };
 
 const STORAGE_KEY = "betweenus.preferences";
