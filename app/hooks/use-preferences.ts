@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   DEFAULT_PREFERENCES,
   Preferences,
@@ -21,9 +21,9 @@ export function usePreferences() {
     return subscribeToPreferences((next) => setPreferences(next));
   }, []);
 
-  const mutate = (updater: PreferencesUpdater) => {
+  const mutate = useCallback((updater: PreferencesUpdater) => {
     updatePreferences(updater);
-  };
+  }, []);
 
   return [preferences, mutate] as const;
 }

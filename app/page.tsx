@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { StorageStatusCard } from "./components/storage-status-card";
 
 export default function Home() {
@@ -6,7 +7,7 @@ export default function Home() {
       <header className="border-b border-slate-800 bg-slate-950/70 backdrop-blur">
         <div className="mx-auto flex max-w-4xl flex-col gap-2 px-6 py-12">
           <p className="text-sm uppercase tracking-[0.4em] text-slate-400">
-            BetweenUs · Phase 2
+            BetweenUs · Phase 3
           </p>
           <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
             Real-time speech becomes readable conversation.
@@ -32,12 +33,12 @@ export default function Home() {
           </div>
           <ul className="space-y-3 text-sm text-slate-300">
             <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-white">Phase 2 preview</h3>
-              <p>Installable PWA shell with IndexedDB + localStorage wiring.</p>
+              <h3 className="font-semibold text-white">Phase 3 focus</h3>
+              <p>Training workspace with phrase counter, phrase card, and footer controls.</p>
             </li>
             <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-white">Phase 3–4 preview</h3>
-              <p>Training flow for biasing transcription with personal phrases.</p>
+              <h3 className="font-semibold text-white">Phase 4 preview</h3>
+              <p>Hook up recording, IndexedDB storage, and export packaging.</p>
             </li>
             <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <h3 className="font-semibold text-white">Phase 5–8 preview</h3>
@@ -50,10 +51,10 @@ export default function Home() {
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-8">
             <h2 className="text-xl font-semibold text-white">What’s ready now</h2>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
-              <li>✅ Installable PWA with manifest + themed icons</li>
-              <li>✅ Service worker caching for the conversation shell</li>
-              <li>✅ IndexedDB + localStorage scaffolding for training + preferences</li>
-              <li>✅ Phase-aware homepage and README updates</li>
+              <li>✅ Training deck UI with phrase counter + stateful controls</li>
+              <li>✅ PWA shell with IndexedDB + localStorage scaffolding</li>
+              <li>✅ Region vocabulary hint stored in preferences</li>
+              <li>✅ Phase-aware homepage, README, and testing guidance</li>
             </ul>
           </div>
           <div className="rounded-3xl border border-emerald-700/40 bg-emerald-500/10 p-8 text-emerald-200">
@@ -61,9 +62,15 @@ export default function Home() {
               Up next
             </h2>
             <p className="mt-4 text-sm leading-relaxed">
-              Phases 3–4 will layer in the full training workflow — phrase deck,
-              recording controls, IndexedDB persistence, and export packaging.
+              Phase 4 deepens the training experience with actual audio capture,
+              IndexedDB persistence, and ZIP export packaging.
             </p>
+            <Link
+              href="/training"
+              className="mt-6 inline-flex items-center justify-center rounded-full border border-emerald-500 px-6 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-400 hover:text-white"
+            >
+              Open training workspace
+            </Link>
           </div>
         </section>
 

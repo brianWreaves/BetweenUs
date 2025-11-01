@@ -32,7 +32,7 @@ export function StorageStatusCard() {
       </h2>
       <p className="mt-3 text-sm text-slate-300">{statusCopy}</p>
 
-      <div className="mt-6">
+      <div className="mt-6 space-y-6">
         <label
           className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.3em] text-slate-400"
           htmlFor="fontScaleSlider"
@@ -57,11 +57,39 @@ export function StorageStatusCard() {
           className="mt-2 w-full accent-emerald-400"
         />
         <p
-          className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-200"
+          className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-200"
           style={{ fontSize: `${preferences.fontScale}rem` }}
         >
           “Thank you for being here. Flip the device to share this view.”
         </p>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-300">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+            Training progress snapshot
+          </h3>
+          <p className="mt-2 text-slate-200">
+            {preferences.trainingCompletedCount} phrases marked complete in this device
+            session.
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Progress will later sync with recorded audio stored in IndexedDB.
+          </p>
+        </div>
+
+        <label className="block text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+          Region vocabulary hint
+          <input
+            className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-200 outline-none focus:border-emerald-400 focus:outline-none"
+            placeholder="e.g. Melbourne, Mornington Peninsula"
+            defaultValue={preferences.preferredRegion ?? ""}
+            onBlur={(event) =>
+              updatePreferences({ preferredRegion: event.target.value || null })
+            }
+          />
+          <span className="mt-2 block text-xs text-slate-400">
+            We’ll use this to boost local vocabulary when generating keyword lists.
+          </span>
+        </label>
       </div>
     </div>
   );

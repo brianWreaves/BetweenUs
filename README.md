@@ -4,12 +4,12 @@
 
 BetweenUs is a real-time speech-to-text companion built for people living with Motor Neurone Disease (MND). Spoken words are transcribed on-device and shown as large, flippable text blocks so conversation partners can keep up with face-to-face chats.
 
-> **Phase 2 status (PWA + Storage Architecture)**  
-> ✅ Installable PWA shell (manifest, icons, service worker)  
-> ✅ IndexedDB + localStorage scaffolding for training data and preferences  
-> ✅ Interactive font-size preview wired to persisted preferences  
-> ✅ Training export packaging helper (manifest, transcripts, audio stubs)  
-> ✅ README + landing page refreshed with new testing steps
+> **Phase 3 status (Training UI – Base Elements)**  
+> ✅ Training workspace with phrase counter, card, and footer controls  
+> ✅ Persistent phrase index + completion counter stored in preferences  
+> ✅ Region vocabulary hint captured for future keyword boosting  
+> ✅ PWA shell, storage scaffolding, and export helpers from Phase 2  
+> ✅ README + landing page refreshed with training test steps
 
 ---
 
@@ -42,14 +42,15 @@ Roadmap phases are tracked from the [PRD](./docs/PRD.md) and organised into GitH
    ```bash
    npm run dev
    ```
-4. Open the forwarded preview link (or `http://localhost:3000` if running locally) and confirm the Phase 2 overview with storage status renders.
+4. Open the forwarded preview link (or `http://localhost:3000` if running locally) and confirm the Phase 3 overview with storage + training summaries renders.
 
-### PWA & storage smoke test
+### PWA, storage & training smoke test
 
-1. Look for the install prompt in Firefox or use the browser menu → “Install BetweenUs”.  
-2. After installing, relaunch the standalone app and confirm the landing screen loads.  
-3. Toggle the “Message size preview” slider — the percentage and preview text should persist on refresh.  
-4. Switch your device/DevTools to offline mode; the page should still load with cached assets and stored preferences.
+1. Look for the install prompt (Android Firefox uses “Add to Home screen”). Relaunch to confirm standalone mode.  
+2. Toggle the “Message size preview” slider — the percentage and preview text should persist on refresh.  
+3. Enter a suburb/region in the vocabulary hint box; reload to confirm it remains saved.  
+4. Visit `/training`, mark a phrase “Done”, move to the next, reload; the counter should persist.  
+5. Switch the device/DevTools to offline mode; the landing page and stored preferences should still be available.
 
 ### Available npm scripts
 
@@ -89,7 +90,8 @@ The development plan is structured as 14 MVP phases. Each phase follows the same
 | Phase | Focus                                             |
 | ----- | ------------------------------------------------- |
 | 2     | ✅ Done — PWA shell, storage scaffolding           |
-| 3–4   | Training UI, audio capture, ZIP export            |
+| 3     | ✅ Done — Training UI base elements                |
+| 4     | Training logic, recording pipeline, ZIP export    |
 | 5–8   | Conversation surface, Deepgram streaming, flip UX |
 | 9–11  | Orientation logic, dotted separators, notifications |
 
@@ -105,6 +107,7 @@ app/components/    # Client components shared across routes
 app/hooks/         # React client hooks (PWA/storage integration)
 docs/              # Product requirements, decisions, and user-facing notes
 lib/storage/       # IndexedDB + preference utilities and export helpers
+lib/training/      # Static phrase decks and future training helpers
 public/            # Static assets (icons, manifest, service worker)
 .env.local.example # Template for local environment variables
 ```
@@ -119,8 +122,10 @@ Current manual checklist:
 
 - Landing page renders without console errors in Firefox (Android/Desktop).  
 - `npm run lint` and `npm run build` succeed.  
-- PWA installation succeeds and launches in standalone mode.  
-- Offline mode still displays the cached shell with stored font-size preference.  
+- PWA installation succeeds and launches in standalone mode (Add to Home screen on Android).  
+- Offline mode still displays the cached shell with stored preferences.  
+- Training workspace tracks phrase position + completion count after reload.  
+- Region hint persists in preferences and will later feed keyword boosting.  
 - `prepareTrainingExportPackage` returns manifests/transcripts matching stored phrases.
 
 Upcoming phases will layer automated tests around transcription flows, device orientation behaviour, and data export integrity.

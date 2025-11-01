@@ -4,6 +4,9 @@ export type Preferences = {
   lowPowerMode: boolean;
   lastPhaseCompleted: number;
   lastExportedAt?: string | null;
+  trainingPhraseIndex: number;
+  trainingCompletedCount: number;
+  preferredRegion?: string | null;
 };
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -12,6 +15,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   lowPowerMode: false,
   lastPhaseCompleted: 1,
   lastExportedAt: null,
+  trainingPhraseIndex: 0,
+  trainingCompletedCount: 0,
+  preferredRegion: null,
 };
 
 const STORAGE_KEY = "betweenus.preferences";
