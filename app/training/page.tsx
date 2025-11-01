@@ -120,7 +120,10 @@ export default function TrainingPage() {
   const [preferences, updatePreferences] = usePreferences();
   useEffect(() => {
     if ((preferences.lastPhaseCompleted ?? 1) < 3) {
-      updatePreferences({ lastPhaseCompleted: 3 });
+      const timeout = window.setTimeout(() => {
+        updatePreferences({ lastPhaseCompleted: 3 });
+      }, 0);
+      return () => window.clearTimeout(timeout);
     }
   }, [preferences.lastPhaseCompleted, updatePreferences]);
 
