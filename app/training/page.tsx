@@ -17,8 +17,12 @@ function computeNextIndex(current: number) {
 
 function TrainingHeader({
   current,
+  totalCompleted,
+  status,
 }: {
   current: number;
+  totalCompleted: number;
+  status: SessionState;
 }) {
   return (
     <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
@@ -29,6 +33,15 @@ function TrainingHeader({
         <h1 className="mt-2 text-2xl font-semibold text-white">
           Phrase {current + 1} of {TOTAL_PHRASES}
         </h1>
+        <p className="mt-1 text-xs text-slate-400">
+          {totalCompleted} phrases marked complete ·
+          {" "}
+          {status === "recording"
+            ? "Recording…"
+            : status === "completed"
+              ? "Ready to continue"
+              : "Tap record to begin"}
+        </p>
       </div>
       <Link
         href="/"
@@ -52,8 +65,8 @@ function TrainingBody({ phrase }: { phrase: TrainingPhrase }) {
         {phrase.text}
       </p>
       <p className="max-w-xl text-sm text-slate-300">
-        Record the phrase in your natural speaking voice. We’ll use it to boost
-        personal vocabulary during live transcription.
+        Record the phrase in your natural speaking voice. Stopping a recording
+        marks the phrase complete so the Next phrase button becomes available.
       </p>
     </section>
   );
@@ -61,66 +74,49 @@ function TrainingBody({ phrase }: { phrase: TrainingPhrase }) {
 
 function TrainingFooter({
   state,
+  canAdvance,
   onRecordToggle,
-  onMarkDone,
   onNext,
   onReRecord,
 }: {
   state: SessionState;
+  canAdvance: boolean;
   onRecordToggle: () => void;
-  onMarkDone: () => void;
   onNext: () => void;
   onReRecord: () => void;
 }) {
   const isRecording = state === "recording";
-  const isCompleted = state === "completed";
 
   return (
     <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 px-6 py-6">
-      <div className="flex gap-3">
-        <button
-          type="button"
-          className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
-          onClick={onReRecord}
-          disabled={state === "idle"}
-        >
-          Re-record
-        </button>
-        <button
-          type="button"
-          className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
-          onClick={onNext}
-        >
-          Next phrase
-        </button>
-      </div>
-      <div className="flex gap-3">
-        <button
-          type="button"
-          className={cn(
-            "rounded-full px-6 py-3 text-sm font-semibold transition",
-            isRecording
-              ? "bg-rose-600 text-white hover:bg-rose-500"
-              : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
-          )}
-          onClick={onRecordToggle}
-        >
-          {isRecording ? "Stop" : "Record"}
-        </button>
-        <button
-          type="button"
-          className={cn(
-            "rounded-full border px-6 py-3 text-sm font-semibold transition",
-            isCompleted
-              ? "border-emerald-500 text-emerald-200 hover:border-emerald-400 hover:text-emerald-100"
-              : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200",
-          )}
-          onClick={onMarkDone}
-          disabled={state === "idle"}
-        >
-          {isCompleted ? "Marked" : "Done"}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
+        onClick={onReRecord}
+        disabled={state === "idle"}
+      >
+        Re-record
+      </button>
+      <button
+        type="button"
+        className={cn(
+          "rounded-full px-6 py-3 text-sm font-semibold transition",
+          isRecording
+            ? "bg-rose-600 text-white hover:bg-rose-500"
+            : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
+        )}
+        onClick={onRecordToggle}
+      >
+        {isRecording ? "Stop" : "Record"}
+      </button>
+      <button
+        type="button"
+        className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
+        onClick={onNext}
+        disabled={!canAdvance}
+      >
+        Next phrase
+      </button>
     </footer>
   );
 }
@@ -128,6 +124,7 @@ function TrainingFooter({
 export default function TrainingPage() {
   const [preferences, updatePreferences] = usePreferences();
   const [sessionState, setSessionState] = useState<SessionState>("idle");
+  const [hasCounted, setHasCounted] = useState(false);
 
   useEffect(() => {
     if ((preferences.lastPhaseCompleted ?? 1) < 3) {
@@ -142,44 +139,59 @@ export default function TrainingPage() {
 
   const currentPhrase = phrases[currentIndex] ?? phrases[0];
 
-  const handleRecordToggle = () => {
-    setSessionState((state) => {
-      if (state === "recording") {
-        return "idle";
-      }
-      return "recording";
-    });
+  const resetCompletionForCurrent = () => {
+    if (hasCounted) {
+      updatePreferences((current) => ({
+        trainingCompletedCount: Math.max(0, current.trainingCompletedCount - 1),
+      }));
+      setHasCounted(false);
+    }
   };
 
-  const handleMarkDone = () => {
-    setSessionState((state) => {
-      if (state !== "completed") {
+  const handleRecordToggle = () => {
+    if (sessionState === "recording") {
+      if (!hasCounted) {
         updatePreferences((current) => ({
           trainingCompletedCount: current.trainingCompletedCount + 1,
         }));
+        setHasCounted(true);
       }
-      return "completed";
-    });
+      setSessionState("completed");
+    } else {
+      resetCompletionForCurrent();
+      setSessionState("recording");
+    }
   };
 
   const handleNextPhrase = () => {
-    setSessionState("idle");
+    if (!hasCounted || sessionState !== "completed") {
+      return;
+    }
     const nextIndex = computeNextIndex(currentIndex);
+    setSessionState("idle");
+    setHasCounted(false);
     updatePreferences({ trainingPhraseIndex: nextIndex });
   };
 
   const handleReRecord = () => {
+    resetCompletionForCurrent();
     setSessionState("recording");
   };
 
+  const canAdvance = hasCounted && sessionState === "completed";
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <TrainingHeader current={currentIndex} />
+      <TrainingHeader
+        current={currentIndex}
+        totalCompleted={preferences.trainingCompletedCount}
+        status={sessionState}
+      />
       <TrainingBody phrase={currentPhrase} />
       <TrainingFooter
         state={sessionState}
+        canAdvance={canAdvance}
         onRecordToggle={handleRecordToggle}
-        onMarkDone={handleMarkDone}
         onNext={handleNextPhrase}
         onReRecord={handleReRecord}
       />

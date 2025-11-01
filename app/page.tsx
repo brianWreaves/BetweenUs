@@ -20,50 +20,15 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-4xl flex-col gap-12 px-6 py-16">
+      <main className="mx-auto flex max-w-4xl flex-col gap-10 px-6 py-14">
+        <StorageStatusCard />
+
         <section className="grid gap-6 rounded-3xl border border-slate-800 bg-slate-950/60 p-8 shadow-lg shadow-slate-950/40 md:grid-cols-2">
           <div>
-            <h2 className="text-xl font-semibold text-white">Why we’re here</h2>
+            <h2 className="text-xl font-semibold text-white">Phase snapshot</h2>
             <p className="mt-4 text-sm leading-relaxed text-slate-300">
-              The MVP focuses on clarity, speed, and reliability. We start with
-              a standalone experience that runs entirely on-device, building the
-              foundation for future integrations with the wider Waggie support
-              platform.
-            </p>
-          </div>
-          <ul className="space-y-3 text-sm text-slate-300">
-            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-white">Phase 3 focus</h3>
-              <p>Training workspace with phrase counter, phrase card, and footer controls.</p>
-            </li>
-            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-white">Phase 4 preview</h3>
-              <p>Hook up recording, IndexedDB storage, and export packaging.</p>
-            </li>
-            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-white">Phase 5–8 preview</h3>
-              <p>Conversation UI, Deepgram streaming, font controls, and flip UX.</p>
-            </li>
-          </ul>
-        </section>
-
-        <section className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-8">
-            <h2 className="text-xl font-semibold text-white">What’s ready now</h2>
-            <ul className="mt-4 space-y-3 text-sm text-slate-300">
-              <li>✅ Training deck UI with phrase counter + stateful controls</li>
-              <li>✅ PWA shell with IndexedDB + localStorage scaffolding</li>
-              <li>✅ Region vocabulary hint stored in preferences</li>
-              <li>✅ Phase-aware homepage, README, and testing guidance</li>
-            </ul>
-          </div>
-          <div className="rounded-3xl border border-emerald-700/40 bg-emerald-500/10 p-8 text-emerald-200">
-            <h2 className="text-xl font-semibold text-emerald-100">
-              Up next
-            </h2>
-            <p className="mt-4 text-sm leading-relaxed">
-              Phase 4 deepens the training experience with actual audio capture,
-              IndexedDB persistence, and ZIP export packaging.
+              We now have a dedicated training workspace so phrases can be practised
+              and marked complete before real audio capture lands in Phase 4.
             </p>
             <Link
               href="/training"
@@ -72,26 +37,48 @@ export default function Home() {
               Open training workspace
             </Link>
           </div>
+          <ul className="space-y-3 text-sm text-slate-300">
+            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-white">Ready now</h3>
+              <p>Training deck UI with phrase counter, re-record flow, and persistent progress.</p>
+            </li>
+            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-white">Next up</h3>
+              <p>Phase 4 connects audio capture, IndexedDB storage, and export packaging.</p>
+            </li>
+            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-white">Looking ahead</h3>
+              <p>Phases 5–8 build the conversation surface, Deepgram streaming, and flip UX.</p>
+            </li>
+          </ul>
         </section>
 
-        <StorageStatusCard />
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/60 p-8">
+          <h2 className="text-xl font-semibold text-white">Why we are here</h2>
+          <p className="mt-4 text-sm leading-relaxed text-slate-300">
+            The MVP focuses on clarity, speed, and reliability. We start with a standalone
+            experience that runs entirely on-device, building the foundation for future
+            integrations with the wider Waggie support platform.
+          </p>
+        </section>
 
         <section className="rounded-3xl border border-slate-800 bg-slate-950/60 p-8">
           <h2 className="text-xl font-semibold text-white">Test checklist</h2>
           <ol className="mt-4 space-y-3 text-sm text-slate-300">
             <li>
-              1. Install dependencies with <code>npm install</code>.
+              1. Run <code>npm run dev</code> and open the forwarded preview URL.
             </li>
             <li>
-              2. Run <code>npm run dev</code> and open the forwarded preview URL.
+              2. Use Add to Home Screen on Android Firefox (or the install prompt elsewhere) and confirm the standalone app loads.
             </li>
             <li>
-              3. Use your browser’s install button (or “Add to Home Screen” on
-              Android Firefox) — confirm the standalone app launches.
+              3. Adjust the message-size slider and region hint above — refresh to ensure both persist.
             </li>
             <li>
-              4. Toggle offline mode: the shell should remain available, with the
-              slider and storage status still visible.
+              4. In the training workspace, press <em>Record</em>, then <em>Stop</em> to mark the phrase complete; the <em>Next phrase</em> button should unlock. Move to the next phrase and refresh to confirm the position persists.
+            </li>
+            <li>
+              5. Toggle offline mode; the landing page and saved preferences should remain available.
             </li>
           </ol>
         </section>

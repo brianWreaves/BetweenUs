@@ -46,10 +46,10 @@ Roadmap phases are tracked from the [PRD](./docs/PRD.md) and organised into GitH
 
 ### PWA, storage & training smoke test
 
-1. Look for the install prompt (Android Firefox uses “Add to Home screen”). Relaunch to confirm standalone mode.  
-2. Toggle the “Message size preview” slider — the percentage and preview text should persist on refresh.  
+1. Look for the install prompt (Android Firefox uses "Add to Home screen"). Relaunch to confirm standalone mode.  
+2. Toggle the "Message size preview" slider — the percentage and preview text should persist on refresh.  
 3. Enter a suburb/region in the vocabulary hint box; reload to confirm it remains saved.  
-4. Visit `/training`, mark a phrase “Done”, move to the next, reload; the counter should persist.  
+4. Visit `/training`, press **Record** then **Stop** to mark the phrase complete, tap **Next phrase**, refresh; the counter should persist on the next phrase.  
 5. Switch the device/DevTools to offline mode; the landing page and stored preferences should still be available.
 
 ### Available npm scripts
