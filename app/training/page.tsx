@@ -1,67 +1,118 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useReducer } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "@/lib/utils";
 import { getPhraseDeck, TrainingPhrase } from "@/lib/training/phrase-deck";
 import { usePreferences } from "@/app/hooks/use-preferences";
+import { SpeechRecorder } from "@/lib/audio/recorder";
+import {
+  getTrainingPhrase,
+  saveTrainingPhrase,
+  TrainingPhraseRecord,
+} from "@/lib/storage/indexed-db";
 
 type SessionState = "idle" | "recording" | "completed";
 
 const phrases = getPhraseDeck();
 const TOTAL_PHRASES = phrases.length;
+const MIN_RECORDING_DURATION_MS = 1200;
 
 function computeNextIndex(current: number) {
   return (current + 1) % TOTAL_PHRASES;
 }
 
+function formatDuration(ms: number): string {
+  if (!ms) return "00:00";
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 function TrainingHeader({
   current,
   totalCompleted,
-  status,
 }: {
   current: number;
   totalCompleted: number;
-  status: SessionState;
 }) {
+  const completed = Math.min(totalCompleted, TOTAL_PHRASES);
   return (
-    <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-      <div>
-        <p className="text-xs uppercase tracking-[0.4em] text-slate-400">
-          Phase 3 · Training session
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold text-white">
-          Phrase {current + 1} of {TOTAL_PHRASES}
+    <header className="border-b border-slate-800 px-6 py-4">
+      <p className="text-xs uppercase tracking-[0.4em] text-slate-400">
+        Phase 4 · Training session
+      </p>
+      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-2xl font-semibold text-white">
+          {completed} of {TOTAL_PHRASES} completed
         </h1>
-        <p className="mt-1 text-xs text-slate-400">
-          {totalCompleted} phrases marked complete ·
-          {" "}
-          {status === "recording"
-            ? "Recording…"
-            : status === "completed"
-              ? "Ready to continue"
-              : "Tap record to begin"}
-        </p>
+        <span className="text-xs text-slate-500">
+          Viewing phrase {current + 1}
+        </span>
       </div>
     </header>
   );
 }
 
-function TrainingBody({ phrase }: { phrase: TrainingPhrase }) {
+function TrainingBody({
+  phrase,
+  isRecording,
+  elapsedMs,
+  saving,
+  error,
+  record,
+}: {
+  phrase: TrainingPhrase;
+  isRecording: boolean;
+  elapsedMs: number;
+  saving: boolean;
+  error: string | null;
+  record: TrainingPhraseRecord | null;
+}) {
   return (
-    <section className="flex flex-1 flex-col justify-center gap-6 px-6 py-10">
-      <div className="flex flex-wrap gap-3">
-        <span className="rounded-full border border-emerald-600/50 bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200">
-          {phrase.category}
-        </span>
+    <section className="flex-1 overflow-y-auto px-6 py-10">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-full border border-emerald-600/50 bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200">
+            {phrase.category}
+          </span>
+          {record?.durationMs ? (
+            <span className="rounded-full border border-slate-800 bg-slate-900/60 px-4 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">
+              Last capture {formatDuration(record.durationMs)}
+            </span>
+          ) : null}
+        </div>
+        <p className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
+          {phrase.text}
+        </p>
+        <div className="space-y-2 text-sm">
+          {isRecording ? (
+            <p className="text-emerald-300">
+              Recording… {formatDuration(elapsedMs)}
+            </p>
+          ) : record?.durationMs ? (
+            <p className="text-slate-400">
+              Last capture {formatDuration(record.durationMs)}
+            </p>
+          ) : null}
+          {saving ? (
+            <p className="text-xs text-slate-500">Saving recording…</p>
+          ) : null}
+          {error ? (
+            <p className="text-xs text-rose-300">{error}</p>
+          ) : null}
+        </div>
       </div>
-      <p className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
-        {phrase.text}
-      </p>
-      <p className="max-w-xl text-sm text-slate-300">
-        Record the phrase in your natural speaking voice. Stopping a recording
-        marks the phrase complete so the Next phrase button becomes available.
-      </p>
     </section>
   );
 }
@@ -87,11 +138,11 @@ function TrainingFooter({
         : "Record";
 
   return (
-    <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 px-6 py-6">
+    <footer className="sticky bottom-0 left-0 right-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-950/95 px-4 py-4 backdrop-blur">
       <Link
         href="/"
         className={cn(
-          "rounded-full border px-4 py-2 text-sm font-medium transition",
+          "rounded-full border px-3 py-2 text-sm font-medium transition",
           state === "recording"
             ? "border-slate-800 text-slate-600"
             : "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white",
@@ -106,12 +157,12 @@ function TrainingFooter({
           onExit();
         }}
       >
-        Exit training
+        Exit
       </Link>
       <button
         type="button"
         className={cn(
-          "rounded-full px-6 py-3 text-sm font-semibold transition",
+          "rounded-full px-4 py-3 text-sm font-semibold transition",
           state === "recording"
             ? "bg-rose-600 text-white hover:bg-rose-500"
             : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
@@ -122,11 +173,11 @@ function TrainingFooter({
       </button>
       <button
         type="button"
-        className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
+        className="rounded-full border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
         onClick={onNext}
         disabled={!canAdvance}
       >
-        Next phrase
+        Next
       </button>
     </footer>
   );
@@ -158,6 +209,11 @@ export default function TrainingPage() {
     },
   );
 
+  const localStateRef = useRef(localState);
+  useEffect(() => {
+    localStateRef.current = localState;
+  }, [localState]);
+
   useEffect(() => {
     dispatchLocal({
       type: "sync",
@@ -186,25 +242,82 @@ export default function TrainingPage() {
 
   const currentPhrase = phrases[currentIndex] ?? phrases[0];
   const sessionState = localState.stage;
-  const hasCounted = localState.hasCounted;
+
+  const recorderRef = useRef<SpeechRecorder | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [recorderError, setRecorderError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [phraseRecord, setPhraseRecord] = useState<TrainingPhraseRecord | null>(
+    null,
+  );
+
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPhraseRecord(null);
+    setElapsedMs(0);
+    setRecorderError(null);
+    recorderRef.current?.reset();
+    resetTimer();
+
+    (async () => {
+      const record = await getTrainingPhrase(currentPhrase.id);
+      if (cancelled) return;
+      setPhraseRecord(record);
+      if (record?.durationMs) {
+        setElapsedMs(record.durationMs);
+      }
+      if (record) {
+        updatePreferences({
+          trainingStage: "completed",
+          trainingHasCounted: true,
+        });
+        dispatchLocal({
+          type: "set",
+          stage: "completed",
+          hasCounted: true,
+        });
+      } else {
+        updatePreferences({
+          trainingStage: "idle",
+          trainingHasCounted: false,
+        });
+        dispatchLocal({
+          type: "set",
+          stage: "idle",
+          hasCounted: false,
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPhrase.id, resetTimer, updatePreferences]);
+
+  useEffect(() => {
+    return () => {
+      resetTimer();
+      recorderRef.current?.reset();
+    };
+  }, [resetTimer]);
 
   const handleRecordToggle = () => {
     if (sessionState === "recording") {
+      recorderRef.current?.stop();
+      return;
+    }
+
+    if (sessionState === "completed") {
       updatePreferences((current) => ({
-        trainingCompletedCount: hasCounted
-          ? current.trainingCompletedCount
-          : current.trainingCompletedCount + 1,
-        trainingStage: "completed",
-        trainingHasCounted: true,
-      }));
-      dispatchLocal({
-        type: "set",
-        stage: "completed",
-        hasCounted: true,
-      });
-    } else if (sessionState === "completed") {
-      updatePreferences((current) => ({
-        trainingCompletedCount: hasCounted
+        trainingCompletedCount: localStateRef.current.hasCounted
           ? Math.max(0, current.trainingCompletedCount - 1)
           : current.trainingCompletedCount,
         trainingStage: "recording",
@@ -215,6 +328,8 @@ export default function TrainingPage() {
         stage: "recording",
         hasCounted: false,
       });
+      setPhraseRecord(null);
+      setElapsedMs(0);
     } else {
       updatePreferences({
         trainingStage: "recording",
@@ -225,13 +340,123 @@ export default function TrainingPage() {
         stage: "recording",
         hasCounted: false,
       });
+      setElapsedMs(0);
+    }
+
+    resetTimer();
+
+    const recorder = new SpeechRecorder({
+      onStart: () => {
+        setRecorderError(null);
+        const startedAt = Date.now();
+        timerRef.current = window.setInterval(() => {
+          setElapsedMs(Date.now() - startedAt);
+        }, 100);
+      },
+      onStop: async (blob, durationMs) => {
+        resetTimer();
+        if (durationMs < MIN_RECORDING_DURATION_MS) {
+          recorderRef.current?.reset();
+          setElapsedMs(0);
+          setSaving(false);
+          setRecorderError("Recording too short — try speaking the full phrase.");
+          updatePreferences({
+            trainingStage: "idle",
+            trainingHasCounted: localStateRef.current.hasCounted,
+          });
+          dispatchLocal({
+            type: "set",
+            stage: "idle",
+            hasCounted: localStateRef.current.hasCounted,
+          });
+          return;
+        }
+        setElapsedMs(durationMs);
+        setSaving(true);
+        try {
+          const alreadyCounted = localStateRef.current.hasCounted;
+          const record: TrainingPhraseRecord = {
+            id: currentPhrase.id,
+            text: currentPhrase.text,
+            category: currentPhrase.category,
+            recordedAt: new Date().toISOString(),
+            durationMs,
+            audio: blob,
+          };
+          await saveTrainingPhrase(record);
+          setPhraseRecord(record);
+          updatePreferences((current) => ({
+            trainingCompletedCount: alreadyCounted
+              ? current.trainingCompletedCount
+              : current.trainingCompletedCount + 1,
+            trainingStage: "completed",
+            trainingHasCounted: true,
+          }));
+          dispatchLocal({
+            type: "set",
+            stage: "completed",
+            hasCounted: true,
+          });
+        } catch (error) {
+          console.error("BetweenUs failed to save recording", error);
+          setRecorderError(
+            error instanceof Error
+              ? error.message
+              : "Unable to save recording",
+          );
+          updatePreferences({
+            trainingStage: "idle",
+            trainingHasCounted: localStateRef.current.hasCounted,
+          });
+          dispatchLocal({
+            type: "set",
+            stage: "idle",
+            hasCounted: localStateRef.current.hasCounted,
+          });
+        } finally {
+          setSaving(false);
+        }
+      },
+      onError: (error) => {
+        resetTimer();
+        setRecorderError(error.message);
+        updatePreferences({
+          trainingStage: "idle",
+          trainingHasCounted: localStateRef.current.hasCounted,
+        });
+        dispatchLocal({
+          type: "set",
+          stage: "idle",
+          hasCounted: localStateRef.current.hasCounted,
+        });
+      },
+    });
+
+    recorderRef.current = recorder;
+    try {
+      void recorder.start();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to access microphone";
+      setRecorderError(message);
+      updatePreferences({
+        trainingStage: "idle",
+        trainingHasCounted: localStateRef.current.hasCounted,
+      });
+      dispatchLocal({
+        type: "set",
+        stage: "idle",
+        hasCounted: localStateRef.current.hasCounted,
+      });
     }
   };
 
   const handleNextPhrase = () => {
-    if (!hasCounted || sessionState !== "completed") {
+    const snapshot = localStateRef.current;
+    if (snapshot.stage === "recording") {
       return;
     }
+
     const nextIndex = computeNextIndex(currentIndex);
     updatePreferences({
       trainingPhraseIndex: nextIndex,
@@ -243,24 +468,35 @@ export default function TrainingPage() {
       stage: "idle",
       hasCounted: false,
     });
+    recorderRef.current?.reset();
+    resetTimer();
+    setElapsedMs(0);
+    setPhraseRecord(null);
   };
 
-  const canAdvance = hasCounted && sessionState === "completed";
-
   const handleExit = () => {
-    if (sessionState === "completed" && hasCounted) {
+    const snapshot = localStateRef.current;
+    if (snapshot.stage !== "recording" && snapshot.hasCounted) {
       handleNextPhrase();
     }
   };
+
+  const canAdvance = sessionState !== "recording";
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
       <TrainingHeader
         current={currentIndex}
         totalCompleted={preferences.trainingCompletedCount}
-        status={sessionState}
       />
-      <TrainingBody phrase={currentPhrase} />
+      <TrainingBody
+        phrase={currentPhrase}
+        isRecording={sessionState === "recording"}
+        elapsedMs={elapsedMs}
+        saving={saving}
+        error={recorderError}
+        record={phraseRecord}
+      />
       <TrainingFooter
         state={sessionState}
         canAdvance={canAdvance}

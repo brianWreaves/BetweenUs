@@ -4,12 +4,12 @@
 
 BetweenUs is a real-time speech-to-text companion built for people living with Motor Neurone Disease (MND). Spoken words are transcribed on-device and shown as large, flippable text blocks so conversation partners can keep up with face-to-face chats.
 
-> **Phase 3 status (Training UI – Base Elements)**  
-> ✅ Training workspace with phrase counter, card, and footer controls  
-> ✅ Persistent phrase index + completion counter stored in preferences  
-> ✅ Region vocabulary hint captured for future keyword boosting  
-> ✅ PWA shell, storage scaffolding, and export helpers from Phase 2  
-> ✅ README + landing page refreshed with training test steps
+> **Phase 4 status (Training Logic & Data Flow)**  
+> ✅ MediaRecorder-powered audio capture with live timer feedback  
+> ✅ Recordings stored per phrase in IndexedDB (webm → wav on export)  
+> ✅ Clear + export actions available from the home dashboard  
+> ✅ ZIP export bundling manifest, transcripts, keywords, and audio  
+> ✅ README + landing page refreshed with recording/export tests
 
 ---
 
@@ -42,15 +42,17 @@ Roadmap phases are tracked from the [PRD](./docs/PRD.md) and organised into GitH
    ```bash
    npm run dev
    ```
-4. Open the forwarded preview link (or `http://localhost:3000` if running locally) and confirm the Phase 3 overview with storage + training summaries renders.
+4. Open the forwarded preview link (or `http://localhost:3000` if running locally) and confirm the Phase 4 overview with storage + training summaries renders.
 
 ### PWA, storage & training smoke test
 
 1. Look for the install prompt (Android Firefox uses "Add to Home screen"). Relaunch to confirm standalone mode.  
 2. Toggle the "Message size preview" slider — the percentage and preview text should persist on refresh.  
 3. Enter a suburb/region in the vocabulary hint box; reload to confirm it remains saved.  
-4. Visit `/training`, press **Record** then **Stop** to mark the phrase complete, tap **Next phrase**, refresh; the counter should persist on the next phrase.  
-5. Switch the device/DevTools to offline mode; the landing page and stored preferences should still be available.
+4. Visit `/training`, press **Record** then **Stop**; confirm the timer stops, the phrase is marked complete, and **Next phrase** unlocks. Move forward, reload, and check the progress persists.  
+5. Trigger **Clear counter** on the home card; verify recordings reset and counters return to zero.  
+6. Use **Export training data** and confirm a ZIP downloads with manifest, keywords, transcripts, and audio assets.  
+7. Switch the device/DevTools to offline mode; the landing page and stored preferences should still be available.
 
 ### Available npm scripts
 
@@ -91,7 +93,7 @@ The development plan is structured as 14 MVP phases. Each phase follows the same
 | ----- | ------------------------------------------------- |
 | 2     | ✅ Done — PWA shell, storage scaffolding           |
 | 3     | ✅ Done — Training UI base elements                |
-| 4     | Training logic, recording pipeline, ZIP export    |
+| 4     | ✅ Done — Recording pipeline, IndexedDB + ZIP export |
 | 5–8   | Conversation surface, Deepgram streaming, flip UX |
 | 9–11  | Orientation logic, dotted separators, notifications |
 
@@ -124,9 +126,9 @@ Current manual checklist:
 - `npm run lint` and `npm run build` succeed.  
 - PWA installation succeeds and launches in standalone mode (Add to Home screen on Android).  
 - Offline mode still displays the cached shell with stored preferences.  
-- Training workspace tracks phrase position + completion count after reload.  
-- Region hint persists in preferences and will later feed keyword boosting.  
-- `prepareTrainingExportPackage` returns manifests/transcripts matching stored phrases.
+- Training workspace records audio, shows timers, and stores progress after reload.  
+- Region hint persists in preferences and feeds export metadata.  
+- Export ZIP includes manifest, keywords, transcripts, and audio assets.
 
 Upcoming phases will layer automated tests around transcription flows, device orientation behaviour, and data export integrity.
 

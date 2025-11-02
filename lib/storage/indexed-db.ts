@@ -8,6 +8,7 @@ export type TrainingPhraseRecord = {
   text: string;
   category: string;
   recordedAt: string;
+  durationMs?: number;
   audio?: Blob;
   keywords?: string[];
 };
@@ -119,6 +120,22 @@ export async function listTrainingPhrases(): Promise<TrainingPhraseRecord[]> {
   return withTransaction([PHRASES_STORE], "readonly", async (tx) => {
     const store = tx.objectStore(PHRASES_STORE);
     return requestToPromise(store.getAll());
+  });
+}
+
+export async function getTrainingPhrase(
+  id: string,
+): Promise<TrainingPhraseRecord | null> {
+  if (!isBrowser) {
+    return memoryDb.phrases.get(id) ?? null;
+  }
+
+  return withTransaction([PHRASES_STORE], "readonly", async (tx) => {
+    const store = tx.objectStore(PHRASES_STORE);
+    const result = await requestToPromise<TrainingPhraseRecord | undefined>(
+      store.get(id),
+    );
+    return result ?? null;
   });
 }
 

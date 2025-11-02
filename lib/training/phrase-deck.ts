@@ -3,7 +3,6 @@ export type PhraseCategory =
   | "Daily conversation"
   | "Phonetic balance"
   | "Numbers and dates"
-  | "Radio alphabet"
   | "Common nouns"
   | "Action verbs";
 
@@ -53,16 +52,6 @@ const phrases: TrainingPhrase[] = [
     id: "numbers-002",
     text: "My appointment is at 4:15 this Thursday.",
     category: "Numbers and dates",
-  },
-  {
-    id: "radio-001",
-    text: "Call sign is Bravo Uniform Seven Six.",
-    category: "Radio alphabet",
-  },
-  {
-    id: "radio-002",
-    text: "Confirm code Alpha Charlie Tango?",
-    category: "Radio alphabet",
   },
   {
     id: "nouns-001",

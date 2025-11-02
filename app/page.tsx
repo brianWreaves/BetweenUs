@@ -7,15 +7,7 @@ export default function Home() {
       <header className="border-b border-slate-800 bg-slate-950/70 backdrop-blur">
         <div className="mx-auto flex max-w-4xl flex-col gap-2 px-6 py-12">
           <p className="text-sm uppercase tracking-[0.4em] text-slate-400">
-            BetweenUs · Phase 3
-          </p>
-          <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-            Real-time speech becomes readable conversation.
-          </h1>
-          <p className="max-w-2xl text-base text-slate-300 sm:text-lg">
-            BetweenUs helps people living with Motor Neurone Disease share
-            spoken words as large, flippable text so everyone around the table
-            can follow along.
+            BetweenUs · Phase 4
           </p>
         </div>
       </header>
@@ -27,8 +19,8 @@ export default function Home() {
           <div>
             <h2 className="text-xl font-semibold text-white">Phase snapshot</h2>
             <p className="mt-4 text-sm leading-relaxed text-slate-300">
-              We now have a dedicated training workspace so phrases can be practised
-              and marked complete before real audio capture lands in Phase 4.
+              Training now captures real audio on-device, stores it in IndexedDB, and
+              makes it exportable for biasing transcription in future releases.
             </p>
             <Link
               href="/training"
@@ -40,11 +32,11 @@ export default function Home() {
           <ul className="space-y-3 text-sm text-slate-300">
             <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <h3 className="font-semibold text-white">Ready now</h3>
-              <p>Training deck UI with phrase counter, re-record flow, and persistent progress.</p>
+              <p>Audio capture with live timers, IndexedDB storage, and export actions.</p>
             </li>
             <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <h3 className="font-semibold text-white">Next up</h3>
-              <p>Phase 4 connects audio capture, IndexedDB storage, and export packaging.</p>
+              <p>Phase 5 builds the conversation surface and introduces streaming STT.</p>
             </li>
             <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <h3 className="font-semibold text-white">Looking ahead</h3>
@@ -75,10 +67,13 @@ export default function Home() {
               3. Adjust the message-size slider and region hint above — refresh to ensure both persist.
             </li>
             <li>
-              4. In the training workspace, press <em>Record</em>, then <em>Stop</em> to mark the phrase complete; the <em>Next phrase</em> button should unlock. Move to the next phrase and refresh to confirm the position persists.
+              4. In the training workspace, press <em>Record</em>, then <em>Stop</em>; confirm the timer stops, the phrase is marked complete, and the <em>Next phrase</em> button unlocks. Move to the next phrase and refresh to confirm progress persists.
             </li>
             <li>
-              5. Toggle offline mode; the landing page and saved preferences should remain available.
+              5. Back on the dashboard, try <em>Export training data</em> to download a ZIP, then use <em>Clear counter</em> and confirm everything resets.
+            </li>
+            <li>
+              6. Toggle offline mode; the landing page and saved preferences should remain available.
             </li>
           </ol>
         </section>
