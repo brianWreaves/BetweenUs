@@ -40,6 +40,20 @@ export function StorageStatusCard() {
           <p className="text-sm text-slate-300">
             {preferences.trainingCompletedCount} phrases completed
           </p>
+          <button
+            type="button"
+            onClick={() =>
+              updatePreferences({
+                trainingCompletedCount: 0,
+                trainingPhraseIndex: 0,
+                trainingStage: "idle",
+                trainingHasCounted: false,
+              })
+            }
+            className="mt-3 inline-flex items-center justify-center rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-slate-500 hover:text-white"
+          >
+            Clear counter
+          </button>
         </div>
         <Link
           href="/training"
@@ -104,21 +118,6 @@ export function StorageStatusCard() {
         >
           Thank you for being here. Flip the device to share this view.
         </p>
-
-        <button
-          type="button"
-          onClick={() =>
-            updatePreferences({
-              trainingCompletedCount: 0,
-              trainingPhraseIndex: 0,
-              trainingStage: "idle",
-              trainingHasCounted: false,
-            })
-          }
-          className="w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-        >
-          Reset training counter
-        </button>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-300">
           <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">

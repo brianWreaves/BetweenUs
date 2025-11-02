@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 import { cn } from "@/lib/utils";
 import { getPhraseDeck, TrainingPhrase } from "@/lib/training/phrase-deck";
 import { usePreferences } from "@/app/hooks/use-preferences";
@@ -88,7 +88,19 @@ function TrainingFooter({
     <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 px-6 py-6">
       <Link
         href="/"
-        className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
+        className={cn(
+          "rounded-full border px-4 py-2 text-sm font-medium transition",
+          state === "recording"
+            ? "border-slate-800 text-slate-600"
+            : "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white",
+        )}
+        aria-disabled={state === "recording"}
+        tabIndex={state === "recording" ? -1 : 0}
+        onClick={(event) => {
+          if (state === "recording") {
+            event.preventDefault();
+          }
+        }}
       >
         Exit training
       </Link>
@@ -118,6 +130,42 @@ function TrainingFooter({
 
 export default function TrainingPage() {
   const [preferences, updatePreferences] = usePreferences();
+  const [localState, dispatchLocal] = useReducer(
+    (
+      state: { stage: SessionState; hasCounted: boolean },
+      action:
+        | { type: "sync"; stage: SessionState; hasCounted: boolean }
+        | { type: "set"; stage: SessionState; hasCounted: boolean },
+    ) => {
+      if (action.type === "sync") {
+        if (
+          state.stage === action.stage &&
+          state.hasCounted === action.hasCounted
+        ) {
+          return state;
+        }
+        return { stage: action.stage, hasCounted: action.hasCounted };
+      }
+      return { stage: action.stage, hasCounted: action.hasCounted };
+    },
+    {
+      stage: preferences.trainingStage ?? "idle",
+      hasCounted: preferences.trainingHasCounted ?? false,
+    },
+  );
+
+  useEffect(() => {
+    dispatchLocal({
+      type: "sync",
+      stage: preferences.trainingStage ?? "idle",
+      hasCounted: preferences.trainingHasCounted ?? false,
+    });
+  }, [
+    preferences.trainingStage,
+    preferences.trainingHasCounted,
+    preferences.trainingPhraseIndex,
+  ]);
+
   useEffect(() => {
     if ((preferences.lastPhaseCompleted ?? 1) < 3) {
       const timeout = window.setTimeout(() => {
@@ -127,18 +175,14 @@ export default function TrainingPage() {
     }
   }, [preferences.lastPhaseCompleted, updatePreferences]);
 
-  if ((preferences.lastPhaseCompleted ?? 1) < 3) {
-    updatePreferences({ lastPhaseCompleted: 3 });
-  }
-
   const currentIndex = useMemo(() => {
     const stored = preferences.trainingPhraseIndex ?? 0;
     return ((stored % TOTAL_PHRASES) + TOTAL_PHRASES) % TOTAL_PHRASES;
   }, [preferences.trainingPhraseIndex]);
 
   const currentPhrase = phrases[currentIndex] ?? phrases[0];
-  const sessionState = preferences.trainingStage ?? "idle";
-  const hasCounted = preferences.trainingHasCounted ?? false;
+  const sessionState = localState.stage;
+  const hasCounted = localState.hasCounted;
 
   const handleRecordToggle = () => {
     if (sessionState === "recording") {
@@ -149,6 +193,11 @@ export default function TrainingPage() {
         trainingStage: "completed",
         trainingHasCounted: true,
       }));
+      dispatchLocal({
+        type: "set",
+        stage: "completed",
+        hasCounted: true,
+      });
     } else if (sessionState === "completed") {
       updatePreferences((current) => ({
         trainingCompletedCount: hasCounted
@@ -157,10 +206,20 @@ export default function TrainingPage() {
         trainingStage: "recording",
         trainingHasCounted: false,
       }));
+      dispatchLocal({
+        type: "set",
+        stage: "recording",
+        hasCounted: false,
+      });
     } else {
       updatePreferences({
         trainingStage: "recording",
         trainingHasCounted: false,
+      });
+      dispatchLocal({
+        type: "set",
+        stage: "recording",
+        hasCounted: false,
       });
     }
   };
@@ -174,6 +233,11 @@ export default function TrainingPage() {
       trainingPhraseIndex: nextIndex,
       trainingStage: "idle",
       trainingHasCounted: false,
+    });
+    dispatchLocal({
+      type: "set",
+      stage: "idle",
+      hasCounted: false,
     });
   };
 
