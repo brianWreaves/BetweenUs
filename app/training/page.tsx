@@ -71,11 +71,13 @@ function TrainingFooter({
   canAdvance,
   onRecordToggle,
   onNext,
+  onExit,
 }: {
   state: SessionState;
   canAdvance: boolean;
   onRecordToggle: () => void;
   onNext: () => void;
+  onExit: () => void;
 }) {
   const label =
     state === "recording"
@@ -99,7 +101,9 @@ function TrainingFooter({
         onClick={(event) => {
           if (state === "recording") {
             event.preventDefault();
+            return;
           }
+          onExit();
         }}
       >
         Exit training
@@ -243,6 +247,12 @@ export default function TrainingPage() {
 
   const canAdvance = hasCounted && sessionState === "completed";
 
+  const handleExit = () => {
+    if (sessionState === "completed" && hasCounted) {
+      handleNextPhrase();
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
       <TrainingHeader
@@ -256,6 +266,7 @@ export default function TrainingPage() {
         canAdvance={canAdvance}
         onRecordToggle={handleRecordToggle}
         onNext={handleNextPhrase}
+        onExit={handleExit}
       />
     </div>
   );
