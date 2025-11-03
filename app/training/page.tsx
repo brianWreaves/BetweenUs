@@ -123,13 +123,32 @@ function TrainingFooter({
   onRecordToggle,
   onNext,
   onExit,
+  phraseId,
 }: {
   state: SessionState;
   canAdvance: boolean;
   onRecordToggle: () => void;
   onNext: () => void;
   onExit: () => void;
+  phraseId: string;
 }) {
+  const recordButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const button = recordButtonRef.current;
+    if (!button || typeof window === "undefined") {
+      return;
+    }
+
+    const prefersPrecisePointer = window.matchMedia(
+      "(hover: hover) and (pointer: fine)",
+    ).matches;
+
+    if (prefersPrecisePointer) {
+      button.focus({ preventScroll: true });
+    }
+  }, [phraseId, state]);
+
   const label =
     state === "recording"
       ? "Stop"
@@ -168,6 +187,7 @@ function TrainingFooter({
             : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
         )}
         onClick={onRecordToggle}
+        ref={recordButtonRef}
       >
         {label}
       </button>
@@ -503,6 +523,7 @@ export default function TrainingPage() {
         onRecordToggle={handleRecordToggle}
         onNext={handleNextPhrase}
         onExit={handleExit}
+        phraseId={currentPhrase.id}
       />
     </div>
   );

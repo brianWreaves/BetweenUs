@@ -85,6 +85,17 @@ export function StorageStatusCard() {
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6 space-y-6">
+      {actionMessage ? (
+        <p className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200">
+          {actionMessage}
+        </p>
+      ) : null}
+      {actionError ? (
+        <p className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+          {actionError}
+        </p>
+      ) : null}
+
       <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-300">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -205,16 +216,6 @@ export function StorageStatusCard() {
           Thank you for being here. Flip the device to share this view.
         </p>
 
-        {actionMessage ? (
-          <p className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200">
-            {actionMessage}
-          </p>
-        ) : null}
-        {actionError ? (
-          <p className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
-            {actionError}
-          </p>
-        ) : null}
       </section>
     </div>
   );
