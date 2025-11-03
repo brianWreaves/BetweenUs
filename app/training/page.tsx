@@ -23,7 +23,7 @@ type SessionState = "idle" | "recording" | "completed";
 
 const phrases = getPhraseDeck();
 const TOTAL_PHRASES = phrases.length;
-const MIN_RECORDING_DURATION_MS = 1200;
+const MIN_RECORDING_DURATION_MS = 3000;
 
 function computeNextIndex(current: number) {
   return (current + 1) % TOTAL_PHRASES;
