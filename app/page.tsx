@@ -1,83 +1,161 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { StorageStatusCard } from "./components/storage-status-card";
 
+type ConversationMessage = {
+  id: string;
+  text: string;
+  speaker: "user" | "partner";
+  final: boolean;
+};
+
+const demoMessages: ConversationMessage[] = [
+  {
+    id: "msg-001",
+    text: "Thanks for being patient — I’m loading the latest phrases.",
+    speaker: "user",
+    final: true,
+  },
+  {
+    id: "msg-002",
+    text: "All good! Ready when you are.",
+    speaker: "partner",
+    final: true,
+  },
+  {
+    id: "msg-003",
+    text: "Let’s start reading a few lines together to warm up.",
+    speaker: "user",
+    final: true,
+  },
+];
+
 export default function Home() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMicActive, setIsMicActive] = useState(false);
+  const [isPartnerView, setIsPartnerView] = useState(false);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-950/70 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl flex-col gap-2 px-6 py-12">
-          <p className="text-sm uppercase tracking-[0.4em] text-slate-400">
-            BetweenUs · Phase 4
-          </p>
+    <div className="relative flex min-h-screen flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/70 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
+          <button
+            type="button"
+            className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
+            onClick={() => setIsMenuOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={isMenuOpen}
+          >
+            Menu
+          </button>
+          <span className="text-sm font-semibold uppercase tracking-[0.4em] text-slate-300">
+            Logo
+          </span>
+          <button
+            type="button"
+            className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
+            onClick={() => setIsPartnerView((current) => !current)}
+            aria-pressed={isPartnerView}
+          >
+            Flip
+          </button>
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-4xl flex-col gap-10 px-6 py-14">
-        <StorageStatusCard />
-
-        <section className="grid gap-6 rounded-3xl border border-slate-800 bg-slate-950/60 p-8 shadow-lg shadow-slate-950/40 md:grid-cols-2">
-          <div>
-            <h2 className="text-xl font-semibold text-white">Phase snapshot</h2>
-            <p className="mt-4 text-sm leading-relaxed text-slate-300">
-              Training now captures real audio on-device, stores it in IndexedDB, and
-              makes it exportable for biasing transcription in future releases.
-            </p>
-            <Link
-              href="/training"
-              className="mt-6 inline-flex items-center justify-center rounded-full border border-emerald-500 px-6 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-400 hover:text-white"
-            >
-              Open training workspace
-            </Link>
+      <main className="flex flex-1 flex-col">
+        <section className="flex-1 px-6 py-10">
+          <div
+            className={cn(
+              "mx-auto flex h-full w-full max-w-5xl flex-col gap-6 rounded-3xl border border-slate-800 bg-slate-950/60 p-6 shadow-lg shadow-slate-950/40 transition-transform duration-300 ease-out",
+              isPartnerView ? "rotate-180" : "rotate-0",
+            )}
+          >
+            <header className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-slate-400">
+              <span>{isMicActive ? "Listening…" : "Tap start to begin"}</span>
+              <span>{demoMessages.length} messages</span>
+            </header>
+            <div className="flex-1 space-y-4 overflow-y-auto pb-4">
+              {demoMessages.map((message) => (
+                <p
+                  key={message.id}
+                  className={cn(
+                    "max-w-xl rounded-3xl border px-5 py-4 text-2xl font-semibold leading-tight",
+                    message.speaker === "user"
+                      ? "ml-auto border-emerald-700/40 bg-emerald-500/10 text-emerald-100"
+                      : "mr-auto border-slate-700/60 bg-slate-900/60 text-slate-100",
+                    message.final ? "" : "opacity-80",
+                  )}
+                >
+                  {message.text}
+                </p>
+              ))}
+              {isMicActive ? (
+                <p className="ml-auto max-w-xl rounded-3xl border border-emerald-500/60 bg-emerald-500/10 px-5 py-4 text-2xl font-semibold leading-tight text-emerald-100">
+                  …
+                </p>
+              ) : null}
+            </div>
           </div>
-          <ul className="space-y-3 text-sm text-slate-300">
-            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-white">Ready now</h3>
-              <p>Audio capture with live timers, IndexedDB storage, and export actions.</p>
-            </li>
-            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-white">Next up</h3>
-              <p>Phase 5 builds the conversation surface and introduces streaming STT.</p>
-            </li>
-            <li className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-white">Looking ahead</h3>
-              <p>Phases 5–8 build the conversation surface, Deepgram streaming, and flip UX.</p>
-            </li>
-          </ul>
-        </section>
-
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/60 p-8">
-          <h2 className="text-xl font-semibold text-white">Why we are here</h2>
-          <p className="mt-4 text-sm leading-relaxed text-slate-300">
-            The MVP focuses on clarity, speed, and reliability. We start with a standalone
-            experience that runs entirely on-device, building the foundation for future
-            integrations with the wider Waggie support platform.
-          </p>
-        </section>
-
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/60 p-8">
-          <h2 className="text-xl font-semibold text-white">Test checklist</h2>
-          <ol className="mt-4 space-y-3 text-sm text-slate-300">
-            <li>
-              1. Run <code>npm run dev</code> and open the forwarded preview URL.
-            </li>
-            <li>
-              2. Use Add to Home Screen on Android Firefox (or the install prompt elsewhere) and confirm the standalone app loads.
-            </li>
-            <li>
-              3. Adjust the message-size slider and region hint above — refresh to ensure both persist.
-            </li>
-            <li>
-              4. In the training workspace, press <em>Record</em>, then <em>Stop</em>; confirm the timer stops, the phrase is marked complete, and the <em>Next phrase</em> button unlocks. Move to the next phrase and refresh to confirm progress persists.
-            </li>
-            <li>
-              5. Back on the dashboard, try <em>Export training data</em> to download a ZIP, then use <em>Clear counter</em> and confirm everything resets.
-            </li>
-            <li>
-              6. Toggle offline mode; the landing page and saved preferences should remain available.
-            </li>
-          </ol>
         </section>
       </main>
+
+      <footer className="sticky bottom-0 z-20 border-t border-slate-800 bg-slate-950/80 px-6 py-4 backdrop-blur">
+        <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4">
+          <Link
+            href="/training"
+            className="rounded-3xl border border-slate-700 px-6 py-5 text-center text-sm font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-slate-500 hover:text-white"
+          >
+            Continue Training
+          </Link>
+          <button
+            type="button"
+            className={cn(
+              "rounded-3xl px-6 py-5 text-center text-sm font-semibold uppercase tracking-[0.3em] transition",
+              isMicActive
+                ? "border border-rose-600 bg-rose-500 text-rose-950 hover:bg-rose-400"
+                : "border border-emerald-500 bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
+            )}
+            onClick={() => setIsMicActive((current) => !current)}
+          >
+            Mic {isMicActive ? "Stop" : "Start"}
+          </button>
+        </div>
+      </footer>
+
+      {isMenuOpen ? (
+        <div className="fixed inset-0 z-30 flex">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
+            aria-label="Close settings"
+            onClick={() => setIsMenuOpen(false)}
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            className="relative ml-auto flex h-full w-full max-w-md flex-col border-l border-slate-800 bg-slate-950"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-400">
+                Settings
+              </h2>
+              <button
+                type="button"
+                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <StorageStatusCard />
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </div>
   );
 }
