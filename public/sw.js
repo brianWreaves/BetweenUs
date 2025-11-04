@@ -1,4 +1,4 @@
-const CACHE_NAME = "betweenus-shell-v2";
+const CACHE_NAME = "betweenus-shell-v3";
 const PRECACHE_URLS = ["/", "/training", "/manifest.webmanifest"];
 
 function shouldCache(response) {

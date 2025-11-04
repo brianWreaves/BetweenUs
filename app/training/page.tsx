@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -81,7 +81,7 @@ function TrainingBody({
 }) {
   return (
     <section className="flex-1 overflow-y-auto px-6 py-10">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <div className="flex flex-wrap items-center gap-3">
           <span className="rounded-full border border-emerald-600/50 bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200">
             {phrase.category}
@@ -158,26 +158,19 @@ function TrainingFooter({
 
   return (
     <footer className="sticky bottom-0 left-0 right-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-950/95 px-4 py-4 backdrop-blur">
-      <Link
-        href="/"
+      <button
+        type="button"
         className={cn(
           "rounded-full border px-3 py-2 text-sm font-medium transition",
           state === "recording"
             ? "border-slate-800 text-slate-600"
             : "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white",
         )}
-        aria-disabled={state === "recording"}
-        tabIndex={state === "recording" ? -1 : 0}
-        onClick={(event) => {
-          if (state === "recording") {
-            event.preventDefault();
-            return;
-          }
-          onExit();
-        }}
+        onClick={onExit}
+        disabled={state === "recording"}
       >
         Exit
-      </Link>
+      </button>
       <button
         type="button"
         className={cn(
@@ -204,6 +197,7 @@ function TrainingFooter({
 }
 
 export default function TrainingPage() {
+  const router = useRouter();
   const [preferences, updatePreferences] = usePreferences();
   const [localState, dispatchLocal] = useReducer(
     (
@@ -471,7 +465,7 @@ export default function TrainingPage() {
     }
   };
 
-  const handleNextPhrase = () => {
+  const handleNextPhrase = useCallback(() => {
     const snapshot = localStateRef.current;
     if (snapshot.stage === "recording") {
       return;
@@ -492,39 +486,73 @@ export default function TrainingPage() {
     resetTimer();
     setElapsedMs(0);
     setPhraseRecord(null);
-  };
+  }, [currentIndex, dispatchLocal, resetTimer, updatePreferences]);
 
-  const handleExit = () => {
+  const handleExit = useCallback(() => {
     const snapshot = localStateRef.current;
-    if (snapshot.stage !== "recording" && snapshot.hasCounted) {
-      handleNextPhrase();
+    if (snapshot.stage === "recording") {
+      return;
     }
-  };
+
+    if (snapshot.hasCounted) {
+      handleNextPhrase();
+    } else {
+      updatePreferences({
+        trainingStage: "idle",
+        trainingHasCounted: snapshot.hasCounted,
+      });
+      dispatchLocal({
+        type: "set",
+        stage: "idle",
+        hasCounted: snapshot.hasCounted,
+      });
+    }
+
+    router.push("/");
+  }, [dispatchLocal, handleNextPhrase, router, updatePreferences]);
 
   const canAdvance = sessionState !== "recording";
 
+  useEffect(() => {
+    if (sessionState === "recording") {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleExit();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleExit, sessionState]);
+
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <TrainingHeader
-        current={currentIndex}
-        totalCompleted={preferences.trainingCompletedCount}
-      />
-      <TrainingBody
-        phrase={currentPhrase}
-        isRecording={sessionState === "recording"}
-        elapsedMs={elapsedMs}
-        saving={saving}
-        error={recorderError}
-        record={phraseRecord}
-      />
-      <TrainingFooter
-        state={sessionState}
-        canAdvance={canAdvance}
-        onRecordToggle={handleRecordToggle}
-        onNext={handleNextPhrase}
-        onExit={handleExit}
-        phraseId={currentPhrase.id}
-      />
+    <div className="flex min-h-screen flex-col items-center bg-slate-950 text-slate-100">
+      <div className="flex w-full max-w-5xl flex-1 flex-col">
+        <TrainingHeader
+          current={currentIndex}
+          totalCompleted={preferences.trainingCompletedCount}
+        />
+        <TrainingBody
+          phrase={currentPhrase}
+          isRecording={sessionState === "recording"}
+          elapsedMs={elapsedMs}
+          saving={saving}
+          error={recorderError}
+          record={phraseRecord}
+        />
+        <TrainingFooter
+          state={sessionState}
+          canAdvance={canAdvance}
+          onRecordToggle={handleRecordToggle}
+          onNext={handleNextPhrase}
+          onExit={handleExit}
+          phraseId={currentPhrase.id}
+        />
+      </div>
     </div>
   );
 }
