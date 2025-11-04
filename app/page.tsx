@@ -1,9 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { StorageStatusCard } from "./components/storage-status-card";
+import { createMockSpeechService } from "@/lib/speech/mock-service";
+import { useConversation } from "./hooks/use-conversation";
 
 const sampleTranscripts = [
   "Thanks for being patient while I set things up.",
@@ -13,11 +21,25 @@ const sampleTranscripts = [
 export default function Home() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMicActive, setIsMicActive] = useState(false);
   const [isPartnerView, setIsPartnerView] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
   const micButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const speechService = useMemo(
+    () => createMockSpeechService(sampleTranscripts),
+    [],
+  );
+
+  const {
+    messages,
+    draft,
+    status,
+    isListening,
+    start,
+    stop,
+    clear,
+  } = useConversation(speechService);
 
   const handleContinueTraining = useCallback(() => {
     router.push("/training");
@@ -43,7 +65,7 @@ export default function Home() {
     if (prefersPrecisePointer && micButtonRef.current) {
       micButtonRef.current.focus({ preventScroll: true });
     }
-  }, [isMicActive]);
+  }, [isListening]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -70,6 +92,18 @@ export default function Home() {
       document.removeEventListener("keydown", handleKey);
     };
   }, [isMenuOpen]);
+
+  const handleMicToggle = useCallback(() => {
+    if (isListening) {
+      void stop();
+    } else {
+      void start();
+    }
+  }, [isListening, start, stop]);
+
+  const handleClear = useCallback(() => {
+    clear();
+  }, [clear]);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
@@ -116,17 +150,17 @@ export default function Home() {
           )}
         >
           <div className="flex-1 space-y-10 overflow-y-auto py-6">
-            {sampleTranscripts.map((text, index) => (
+            {messages.map((message) => (
               <p
-                key={index}
+                key={message.id}
                 className="text-4xl font-semibold leading-tight text-white"
               >
-                {text}
+                {message.text}
               </p>
             ))}
-            {isMicActive ? (
+            {draft ? (
               <p className="text-4xl font-semibold leading-tight text-emerald-200">
-                …
+                {draft}
               </p>
             ) : null}
           </div>
@@ -142,19 +176,35 @@ export default function Home() {
           >
             Continue Training
           </button>
-          <button
-            type="button"
-            className={cn(
-              "rounded-full px-4 py-3 text-sm font-semibold transition",
-              isMicActive
-                ? "bg-rose-600 text-white hover:bg-rose-500"
-                : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
-            )}
-            onClick={() => setIsMicActive((current) => !current)}
-            ref={micButtonRef}
-          >
-            {isMicActive ? "MIC Stop" : "MIC Start"}
-          </button>
+          <div className="flex items-center gap-3">
+            {messages.length > 0 || draft ? (
+              <button
+                type="button"
+                className="rounded-full border border-slate-700 px-3 py-2 text-sm font-medium transition hover:border-slate-500 hover:text-white"
+                onClick={handleClear}
+              >
+                Clear
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={cn(
+                "rounded-full px-4 py-3 text-sm font-semibold transition",
+                isListening
+                  ? "bg-rose-600 text-white hover:bg-rose-500"
+                  : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
+              )}
+              onClick={handleMicToggle}
+              ref={micButtonRef}
+            >
+              {isListening ? "MIC Stop" : "MIC Start"}
+            </button>
+          </div>
+          {status === "error" ? (
+            <p className="w-full text-right text-xs text-rose-300">
+              Microphone unavailable — check permissions and try again.
+            </p>
+          ) : null}
         </div>
       </footer>
     </div>
