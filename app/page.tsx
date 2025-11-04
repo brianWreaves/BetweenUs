@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { StorageStatusCard } from "./components/storage-status-card";
 
@@ -11,12 +11,17 @@ const sampleTranscripts = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
   const [isPartnerView, setIsPartnerView] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  const menuContainerRef = useRef<HTMLDivElement | null>(null);
   const micButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const handleContinueTraining = useCallback(() => {
+    router.push("/training");
+  }, [router]);
 
   useEffect(() => {
     const prefersPrecisePointer = (() => {
@@ -45,12 +50,8 @@ export default function Home() {
 
     function handleClick(event: MouseEvent) {
       const target = event.target as Node;
-      if (
-        !menuPanelRef.current ||
-        !menuButtonRef.current ||
-        menuPanelRef.current.contains(target) ||
-        menuButtonRef.current.contains(target)
-      ) {
+      const container = menuContainerRef.current;
+      if (!container || container.contains(target)) {
         return;
       }
       setIsMenuOpen(false);
@@ -73,17 +74,26 @@ export default function Home() {
   return (
     <div className="relative flex min-h-screen flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
       <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/70 backdrop-blur">
-        <div className="relative mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
-          <button
-            type="button"
-            className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
-            onClick={() => setIsMenuOpen((current) => !current)}
-            aria-haspopup="dialog"
-            aria-expanded={isMenuOpen}
-            ref={menuButtonRef}
-          >
-            Menu
-          </button>
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
+          <div className="relative" ref={menuContainerRef}>
+            <button
+              type="button"
+              className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
+              onClick={() => setIsMenuOpen((current) => !current)}
+              aria-haspopup="dialog"
+              aria-expanded={isMenuOpen}
+              ref={menuButtonRef}
+            >
+              Menu
+            </button>
+            {isMenuOpen ? (
+              <div className="absolute left-0 top-full z-30 mt-3 w-80 max-w-[calc(100vw-3rem)] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-xl shadow-slate-950/60">
+                <div className="max-h-[70vh] overflow-y-auto p-4">
+                  <StorageStatusCard />
+                </div>
+              </div>
+            ) : null}
+          </div>
           <span className="text-sm font-semibold uppercase tracking-[0.4em] text-slate-300">
             Logo
           </span>
@@ -95,16 +105,6 @@ export default function Home() {
           >
             Flip
           </button>
-          {isMenuOpen ? (
-            <div
-              ref={menuPanelRef}
-              className="absolute left-0 top-full z-30 mt-3 w-80 max-w-[calc(100vw-3rem)] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-xl shadow-slate-950/60"
-            >
-              <div className="max-h-[70vh] overflow-y-auto p-4">
-                <StorageStatusCard />
-              </div>
-            </div>
-          ) : null}
         </div>
       </header>
 
@@ -135,16 +135,17 @@ export default function Home() {
 
       <footer className="sticky bottom-0 z-20 border-t border-slate-800 bg-slate-950/80 px-4 py-4 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/training"
-            className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold transition hover:border-slate-500 hover:text-white"
+          <button
+            type="button"
+            className="rounded-full border border-slate-700 px-3 py-2 text-sm font-medium transition hover:border-slate-500 hover:text-white"
+            onClick={handleContinueTraining}
           >
             Continue Training
-          </Link>
+          </button>
           <button
             type="button"
             className={cn(
-              "rounded-full px-6 py-3 text-sm font-semibold transition",
+              "rounded-full px-4 py-3 text-sm font-semibold transition",
               isMicActive
                 ? "bg-rose-600 text-white hover:bg-rose-500"
                 : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
