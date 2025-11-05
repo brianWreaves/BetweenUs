@@ -51,16 +51,19 @@ export default function Home() {
     if (typeof window === "undefined") {
       return;
     }
-    const query = window.matchMedia("(pointer: coarse)");
-    const update = () => setEnforcePortrait(query.matches);
-    update();
+    const coarseQuery = window.matchMedia("(pointer: coarse)");
+    const evaluate = () => {
+      const hasTouchPoints = (navigator.maxTouchPoints ?? 0) > 0;
+      setEnforcePortrait(coarseQuery.matches || hasTouchPoints);
+    };
+    evaluate();
 
-    if (typeof query.addEventListener === "function") {
-      query.addEventListener("change", update);
-      return () => query.removeEventListener("change", update);
+    if (typeof coarseQuery.addEventListener === "function") {
+      coarseQuery.addEventListener("change", evaluate);
+      return () => coarseQuery.removeEventListener("change", evaluate);
     }
-    query.addListener(update);
-    return () => query.removeListener(update);
+    coarseQuery.addListener(evaluate);
+    return () => coarseQuery.removeListener(evaluate);
   }, []);
 
   useEffect(() => {

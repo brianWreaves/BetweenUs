@@ -28,8 +28,10 @@ class MockSpeechService implements SpeechService {
   private readonly betweenPhraseDelay: number;
 
   private running = false;
+  private seeded = false;
   private activeTimers = new Set<Timer>();
   private phraseIndex = 0;
+  private partialProgress = new Map<number, number>();
 
   private resultListeners = new Set<SpeechResultListener>();
   private errorListeners = new Set<SpeechErrorListener>();
@@ -46,7 +48,13 @@ class MockSpeechService implements SpeechService {
       return;
     }
     this.running = true;
-    this.phraseIndex = 0;
+    if (!this.seeded) {
+      this.phraseIndex = 0;
+      this.seeded = true;
+    } else if (this.phraseIndex >= this.script.length) {
+      this.phraseIndex = 0;
+      this.partialProgress.clear();
+    }
     this.flushTimers();
     this.playNextPhrase();
   }
@@ -101,7 +109,7 @@ class MockSpeechService implements SpeechService {
     }
 
     const tokens = phrase.split(/\s+/).filter(Boolean);
-    let partialIndex = 0;
+    let partialIndex = this.partialProgress.get(this.phraseIndex) ?? 0;
 
     const emitPartial = () => {
       if (!this.running) {
@@ -110,6 +118,7 @@ class MockSpeechService implements SpeechService {
 
       if (partialIndex < tokens.length) {
         partialIndex += 1;
+        this.partialProgress.set(this.phraseIndex, partialIndex);
         this.emitResult({
           text: tokens.slice(0, partialIndex).join(" "),
           final: false,
@@ -118,6 +127,7 @@ class MockSpeechService implements SpeechService {
         return;
       }
 
+      this.partialProgress.delete(this.phraseIndex);
       this.emitResult({ text: phrase, final: true });
       this.phraseIndex += 1;
       this.schedule(() => this.playNextPhrase(), this.betweenPhraseDelay);
