@@ -22,6 +22,7 @@ export default function Home() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPartnerView, setIsPartnerView] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(true);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
   const micButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -44,6 +45,22 @@ export default function Home() {
   const handleContinueTraining = useCallback(() => {
     router.push("/training");
   }, [router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const query = window.matchMedia("(orientation: portrait)");
+    const update = () => setIsPortrait(query.matches);
+    update();
+
+    if (typeof query.addEventListener === "function") {
+      query.addEventListener("change", update);
+      return () => query.removeEventListener("change", update);
+    }
+    query.addListener(update);
+    return () => query.removeListener(update);
+  }, []);
 
   useEffect(() => {
     const prefersPrecisePointer = (() => {
@@ -107,6 +124,16 @@ export default function Home() {
 
   return (
     <div className="relative flex min-h-screen flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      {!isPortrait ? (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-slate-950 px-8 text-center text-slate-200">
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">
+            Portrait only
+          </p>
+          <p className="max-w-xs text-sm text-slate-300">
+            Rotate your device upright to continue using BetweenUs.
+          </p>
+        </div>
+      ) : null}
       <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/70 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
           <div className="relative" ref={menuContainerRef}>
@@ -171,7 +198,7 @@ export default function Home() {
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3">
           <button
             type="button"
-            className="rounded-full border border-slate-700 px-3 py-2 text-sm font-medium transition hover:border-slate-500 hover:text-white"
+            className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold transition hover:border-slate-500 hover:text-white"
             onClick={handleContinueTraining}
           >
             Continue Training
@@ -180,7 +207,7 @@ export default function Home() {
             {messages.length > 0 || draft ? (
               <button
                 type="button"
-                className="rounded-full border border-slate-700 px-3 py-2 text-sm font-medium transition hover:border-slate-500 hover:text-white"
+                className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold transition hover:border-slate-500 hover:text-white"
                 onClick={handleClear}
               >
                 Clear

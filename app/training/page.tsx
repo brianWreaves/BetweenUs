@@ -259,6 +259,7 @@ export default function TrainingPage() {
 
   const recorderRef = useRef<SpeechRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
+  const [isPortrait, setIsPortrait] = useState(true);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [recorderError, setRecorderError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -514,6 +515,22 @@ export default function TrainingPage() {
   const canAdvance = sessionState !== "recording";
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const query = window.matchMedia("(orientation: portrait)");
+    const update = () => setIsPortrait(query.matches);
+    update();
+
+    if (typeof query.addEventListener === "function") {
+      query.addEventListener("change", update);
+      return () => query.removeEventListener("change", update);
+    }
+    query.addListener(update);
+    return () => query.removeListener(update);
+  }, []);
+
+  useEffect(() => {
     if (sessionState === "recording") {
       return;
     }
@@ -530,7 +547,17 @@ export default function TrainingPage() {
   }, [handleExit, sessionState]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-slate-950 text-slate-100">
+    <div className="relative flex min-h-screen flex-col items-center bg-slate-950 text-slate-100">
+      {!isPortrait ? (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-slate-950 px-8 text-center text-slate-200">
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">
+            Portrait only
+          </p>
+          <p className="max-w-xs text-sm text-slate-300">
+            Rotate your device upright to continue training.
+          </p>
+        </div>
+      ) : null}
       <div className="flex w-full max-w-5xl flex-1 flex-col">
         <TrainingHeader
           current={currentIndex}

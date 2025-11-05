@@ -29,26 +29,34 @@ export function useConversation(
   const [draft, setDraft] = useState<string>("");
   const [status, setStatus] = useState<ConversationStatus>("idle");
 
+  const appendFinalMessage = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return;
+    }
+    setMessages((current) => [
+      ...current,
+      {
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        text: trimmed,
+        final: true,
+      },
+    ]);
+    setDraft("");
+  }, []);
+
   const handleResult = useCallback(
     (result: SpeechResult) => {
       if (!result.text) {
         return;
       }
       if (result.final) {
-        setDraft("");
-        setMessages((current) => [
-          ...current,
-          {
-            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            text: result.text,
-            final: true,
-          },
-        ]);
+        appendFinalMessage(result.text);
       } else {
         setDraft(result.text);
       }
     },
-    [setDraft, setMessages],
+    [appendFinalMessage],
   );
 
   const handleError = useCallback(
@@ -83,14 +91,17 @@ export function useConversation(
     if (status === "idle") {
       return;
     }
+    if (draft.trim()) {
+      appendFinalMessage(draft);
+    }
     await service.stop();
     setStatus("idle");
-    setDraft("");
-  }, [service, status]);
+  }, [service, status, draft, appendFinalMessage]);
 
   const clear = useCallback(() => {
     setMessages([]);
     setDraft("");
+    setStatus("idle");
   }, []);
 
   useEffect(() => {
