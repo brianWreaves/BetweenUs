@@ -104,42 +104,6 @@ export function useConversation(
     };
   }, [service, handleResult, handleError, handleStop]);
 
-  const handleResult = useCallback(
-    (result: SpeechResult) => {
-      if (!result.text) {
-        return;
-      }
-      if (result.final) {
-        setDraft("");
-        setMessages((current) => [
-          ...current,
-          {
-            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            text: result.text,
-            final: true,
-          },
-        ]);
-      } else {
-        setDraft(result.text);
-      }
-    },
-    [setDraft, setMessages],
-  );
-
-  const handleError = useCallback(
-    (error: Error) => {
-      console.error("BetweenUs mock speech error", error);
-      setStatus("error");
-      setDraft("");
-    },
-    [setStatus],
-  );
-
-  const handleStop = useCallback(() => {
-    setStatus("idle");
-    setDraft("");
-  }, []);
-
   return {
     messages,
     draft,
