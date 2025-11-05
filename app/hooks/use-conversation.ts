@@ -70,7 +70,6 @@ export function useConversation(
 
   const handleStop = useCallback(() => {
     setStatus("idle");
-    setDraft("");
   }, []);
 
   const start = useCallback(async () => {
@@ -91,12 +90,9 @@ export function useConversation(
     if (status === "idle") {
       return;
     }
-    if (draft.trim()) {
-      appendFinalMessage(draft);
-    }
     await service.stop();
     setStatus("idle");
-  }, [service, status, draft, appendFinalMessage]);
+  }, [service, status]);
 
   const clear = useCallback(() => {
     setMessages([]);
