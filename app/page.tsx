@@ -38,6 +38,8 @@ export default function Home() {
     draft,
     status,
     isListening,
+    lastUpdatedAt,
+    lastMessage,
     start,
     stop,
     clear,
@@ -200,7 +202,23 @@ export default function Home() {
             isPartnerView ? "rotate-180" : "rotate-0",
           )}
         >
-          <div className="flex-1 space-y-10 overflow-y-auto py-6">
+          <div className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-slate-400">
+            <span>
+              {status === "connecting"
+                ? "Connecting…"
+                : status === "listening"
+                  ? "Listening"
+                  : status === "error"
+                    ? "Microphone error"
+                    : "Tap start to begin"}
+            </span>
+            {lastUpdatedAt ? (
+              <span>
+                Updated {new Date(lastUpdatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex-1 space-y-6 overflow-y-auto py-6">
             {messages.map((message) => (
               <p
                 key={message.id}
@@ -212,6 +230,10 @@ export default function Home() {
             {draft ? (
               <p className="text-4xl font-semibold leading-tight text-emerald-200">
                 {draft}
+              </p>
+            ) : messages.length === 0 ? (
+              <p className="text-lg text-slate-400">
+                Press MIC Start to capture speech here. Text will appear live as you speak.
               </p>
             ) : null}
           </div>
@@ -251,11 +273,18 @@ export default function Home() {
               {isListening ? "MIC Stop" : "MIC Start"}
             </button>
           </div>
-          {status === "error" ? (
-            <p className="w-full text-right text-xs text-rose-300">
-              Microphone unavailable — check permissions and try again.
-            </p>
-          ) : null}
+          <div className="flex flex-1 flex-col items-end">
+            {status === "error" ? (
+              <p className="text-xs text-rose-300">
+                Microphone unavailable — check permissions and try again.
+              </p>
+            ) : null}
+            {lastMessage ? (
+              <p className="mt-2 text-right text-xs text-slate-400">
+                Last message: {lastMessage}
+              </p>
+            ) : null}
+          </div>
         </div>
       </footer>
     </div>

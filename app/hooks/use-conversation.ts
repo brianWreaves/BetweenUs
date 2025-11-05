@@ -28,6 +28,8 @@ export function useConversation(
   );
   const [draft, setDraft] = useState<string>("");
   const [status, setStatus] = useState<ConversationStatus>("idle");
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+
 
   const appendFinalMessage = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -43,6 +45,7 @@ export function useConversation(
       },
     ]);
     setDraft("");
+    setLastUpdatedAt(Date.now());
   }, []);
 
   const handleResult = useCallback(
@@ -54,6 +57,7 @@ export function useConversation(
         appendFinalMessage(result.text);
       } else {
         setDraft(result.text);
+        setLastUpdatedAt(Date.now());
       }
     },
     [appendFinalMessage],
@@ -98,7 +102,10 @@ export function useConversation(
     setMessages([]);
     setDraft("");
     setStatus("idle");
+    setLastUpdatedAt(null);
   }, []);
+
+  const lastMessage = draft || messages[messages.length - 1]?.text || "";
 
   useEffect(() => {
     const unsubscribeResult = service.onResult(handleResult);
@@ -115,6 +122,8 @@ export function useConversation(
     messages,
     draft,
     status,
+    lastUpdatedAt,
+    lastMessage,
     isListening: status === "listening",
     start,
     stop,
