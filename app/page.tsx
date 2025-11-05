@@ -22,6 +22,7 @@ export default function Home() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPartnerView, setIsPartnerView] = useState(false);
+  const [enforcePortrait, setEnforcePortrait] = useState(false);
   const [isPortrait, setIsPortrait] = useState(true);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
@@ -50,6 +51,26 @@ export default function Home() {
     if (typeof window === "undefined") {
       return;
     }
+    const query = window.matchMedia("(pointer: coarse)");
+    const update = () => setEnforcePortrait(query.matches);
+    update();
+
+    if (typeof query.addEventListener === "function") {
+      query.addEventListener("change", update);
+      return () => query.removeEventListener("change", update);
+    }
+    query.addListener(update);
+    return () => query.removeListener(update);
+  }, []);
+
+  useEffect(() => {
+    if (!enforcePortrait) {
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      return;
+    }
     const query = window.matchMedia("(orientation: portrait)");
     const update = () => setIsPortrait(query.matches);
     update();
@@ -60,7 +81,7 @@ export default function Home() {
     }
     query.addListener(update);
     return () => query.removeListener(update);
-  }, []);
+  }, [enforcePortrait]);
 
   useEffect(() => {
     const prefersPrecisePointer = (() => {
@@ -124,7 +145,7 @@ export default function Home() {
 
   return (
     <div className="relative flex min-h-screen flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
-      {!isPortrait ? (
+      {enforcePortrait && !isPortrait ? (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-slate-950 px-8 text-center text-slate-200">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">
             Portrait only
