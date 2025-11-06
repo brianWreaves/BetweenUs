@@ -29,10 +29,7 @@ type DeepgramSocket = WebSocket & {
 };
 
 export type DeepgramSpeechOptions = {
-  apiUrl?: string;
-  apiKey: string;
-  language?: string;
-  interimResults?: boolean;
+  getSocketUrl: () => Promise<string>;
 };
 
 export class DeepgramSpeechService implements SpeechService {
@@ -63,7 +60,8 @@ export class DeepgramSpeechService implements SpeechService {
       video: false,
     });
 
-    const socket = await this.createSocket();
+    const socketUrl = await this.options.getSocketUrl();
+    const socket = await this.createSocket(socketUrl);
     this.socket = socket;
     this.audioStream = stream;
 
@@ -139,22 +137,9 @@ export class DeepgramSpeechService implements SpeechService {
     return () => this.stopListeners.delete(listener);
   }
 
-  private async createSocket(): Promise<DeepgramSocket> {
-    const { apiKey, apiUrl, language, interimResults } = this.options;
-    const url = new URL(apiUrl ?? "wss://api.deepgram.com/v1/listen");
-    if (language) {
-      url.searchParams.set("language", language);
-    }
-    if (interimResults) {
-      url.searchParams.set("interim_results", "true");
-    }
-
-    if (apiKey) {
-      url.searchParams.set("access_token", apiKey);
-    }
-
+  private async createSocket(url: string): Promise<DeepgramSocket> {
     return new Promise<DeepgramSocket>((resolve, reject) => {
-      const socket = new WebSocket(url.toString()) as DeepgramSocket;
+      const socket = new WebSocket(url) as DeepgramSocket;
 
       socket.addEventListener("open", () => resolve(socket));
       socket.addEventListener("error", (event) => {

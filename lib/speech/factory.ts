@@ -14,15 +14,22 @@ export function getSpeechService(config: SpeechServiceConfig): SpeechService {
     return cachedService;
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
-  const apiUrl = process.env.NEXT_PUBLIC_DEEPGRAM_LISTEN_URL;
-
-  if (typeof window !== "undefined" && apiKey) {
+  if (
+    typeof window !== "undefined" &&
+    process.env.NEXT_PUBLIC_DEEPGRAM_ENABLED === "true"
+  ) {
     cachedService = new DeepgramSpeechService({
-      apiKey,
-      apiUrl,
-      language: process.env.NEXT_PUBLIC_DEEPGRAM_LANGUAGE ?? "en-AU",
-      interimResults: true,
+      getSocketUrl: async () => {
+        const response = await fetch("/api/deepgram-socket");
+        if (!response.ok) {
+          throw new Error("Unable to obtain Deepgram URL.");
+        }
+        const data = (await response.json()) as { url?: string; error?: string };
+        if (!data.url) {
+          throw new Error(data.error ?? "Deepgram URL missing from response.");
+        }
+        return data.url;
+      },
     });
     cachedIsMock = false;
     return cachedService;
