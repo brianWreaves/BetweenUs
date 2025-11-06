@@ -10,7 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { StorageStatusCard } from "./components/storage-status-card";
-import { createMockSpeechService } from "@/lib/speech/mock-service";
+import { getSpeechService, isUsingMockSpeech } from "@/lib/speech/factory";
 import { useConversation } from "./hooks/use-conversation";
 
 const sampleTranscripts = [
@@ -28,10 +28,13 @@ export default function Home() {
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
   const micButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const speechService = useMemo(
-    () => createMockSpeechService(sampleTranscripts),
-    [],
-  );
+  const { speechService, isMockService } = useMemo(() => {
+    const service = getSpeechService({ fallbackScript: sampleTranscripts });
+    return {
+      speechService: service,
+      isMockService: isUsingMockSpeech(),
+    };
+  }, []);
 
   const {
     messages,
@@ -43,7 +46,9 @@ export default function Home() {
     start,
     stop,
     clear,
-  } = useConversation(speechService);
+  } = useConversation(speechService, {
+    initialMessages: isMockService ? sampleTranscripts : [],
+  });
 
   const handleContinueTraining = useCallback(() => {
     router.push("/training");
