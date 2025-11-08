@@ -41,12 +41,13 @@ export async function GET() {
     }
 
     const raw = await response.json();
-    const key =
-      raw?.key?.key ??
-      raw?.key ??
-      raw?.api_key ??
-      raw?.secret ??
-      null;
+    const key = (() => {
+      if (typeof raw?.secret === "string") return raw.secret;
+      if (typeof raw?.key === "string") return raw.key;
+      if (typeof raw?.key?.secret === "string") return raw.key.secret;
+      if (typeof raw?.api_key === "string") return raw.api_key;
+      return null;
+    })();
 
     if (typeof key !== "string") {
       return NextResponse.json(
