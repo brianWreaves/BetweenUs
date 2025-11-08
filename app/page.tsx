@@ -13,10 +13,7 @@ import { StorageStatusCard } from "./components/storage-status-card";
 import { getSpeechService } from "@/lib/speech/factory";
 import { useConversation } from "./hooks/use-conversation";
 
-const sampleTranscripts = [
-  "Thanks for being patient while I set things up.",
-  "Let’s start reading a few lines together to warm up.",
-];
+const sampleTranscripts: string[] = [];
 
 export default function Home() {
   const router = useRouter();

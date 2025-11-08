@@ -57,7 +57,7 @@ export async function GET() {
       smart_format: "true",
       tier: "enhanced",
       punctuate: "true",
-      token: key,
+      access_token: key,
     });
 
     return NextResponse.json({
