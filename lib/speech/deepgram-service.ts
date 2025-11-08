@@ -78,6 +78,9 @@ export class DeepgramSpeechService implements SpeechService {
     socket.addEventListener("message", (event) => {
       try {
         const payload = JSON.parse(event.data) as DeepgramTranscriptionEvent;
+        if (!payload.channel) {
+          return;
+        }
         const transcript =
           payload.channel.alternatives[0]?.transcript?.trim() ?? "";
         if (!transcript) {

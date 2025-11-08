@@ -71,11 +71,29 @@ Roadmap phases are tracked from the [PRD](./docs/PRD.md) and organised into GitH
 2. **Set required environment variables** under “Settings → Environment Variables”:
    - `DEEPGRAM_API_KEY`
    - `NEXT_PUBLIC_APP_ENV` (`preview` for Preview, `production` for Production)
+   - `RELAY_SHARED_SECRET` (must match the Render relay)
+   - `RELAY_WS_URL` (the Render relay WebSocket URL)
 3. **Enable the “Installable” preview** by ensuring the generated `manifest.webmanifest` appears under “Settings → Functions → Headers”.
 4. **Protect secrets** by storing the Deepgram key only in Vercel (do not commit).
 5. **Trigger a deployment** by pushing to `main` (Vercel auto-builds every commit).
 
 > _Tip:_ invite collaborators through Vercel to allow access to logs and environment edits.
+
+## Render relay deployment
+
+Live streaming requires a lightweight relay that keeps the Deepgram API key server-side. Deploy it on [Render](https://render.com) and point the frontend at its WebSocket endpoint.
+
+1. **Create a Render Web Service** and link it to this repository.
+   - Set **Root Directory** to `relay`.
+   - Build Command: `npm install`
+   - Start Command: `npm start`
+   - Plan: Free “Starter” is sufficient.
+2. **Environment variables on Render**
+   - `DEEPGRAM_API_KEY`
+   - `DEEPGRAM_LANGUAGE` (optional, defaults to `en-AU`)
+   - `RELAY_SHARED_SECRET` (generate a strong random string; reuse the same value on Vercel/local).
+3. **Grab the relay URL** once Render deploys (e.g. `wss://betweenus-relay.onrender.com/stream`) and set it as `RELAY_WS_URL` in `.env.local` and Vercel.
+4. The Next.js client now requests signed URLs from `/api/relay-token`, connects to the Render relay, and the relay forwards audio to Deepgram with the required headers.
 
 ---
 

@@ -20,13 +20,13 @@ export function getSpeechService(config: SpeechServiceConfig): SpeechService {
   ) {
     cachedService = new DeepgramSpeechService({
       getSocketUrl: async () => {
-        const response = await fetch("/api/deepgram-socket");
+        const response = await fetch("/api/relay-token");
         if (!response.ok) {
-          throw new Error("Unable to obtain Deepgram URL.");
+          throw new Error("Unable to obtain relay URL.");
         }
         const data = (await response.json()) as { url?: string; error?: string };
         if (!data.url) {
-          throw new Error(data.error ?? "Deepgram URL missing from response.");
+          throw new Error(data.error ?? "Relay URL missing from response.");
         }
         return data.url;
       },
