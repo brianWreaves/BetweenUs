@@ -2,12 +2,11 @@
 
 import { NextResponse } from "next/server";
 
-const DEEPGRAM_PROJECT_ENDPOINT = "https://api.deepgram.com/v1/projects";
+const DEEPGRAM_LISTEN_ENDPOINT = "https://api.deepgram.com/v1/listen";
 
 export async function GET() {
   const apiKey = process.env.DEEPGRAM_API_KEY;
-  const projectId = process.env.DEEPGRAM_PROJECT_ID;
-  if (!apiKey || !projectId) {
+  if (!apiKey) {
     return NextResponse.json(
       { error: "Deepgram server credentials are not configured." },
       { status: 500 },
@@ -15,54 +14,42 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch(
-      `${DEEPGRAM_PROJECT_ENDPOINT}/${projectId}/keys`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          comment: "BetweenUs ephemeral streaming key",
-          scopes: ["listen:*:*"],
-          time_to_live: 120,
-        }),
+    const response = await fetch(DEEPGRAM_LISTEN_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        model: "nova-3",
+        language: process.env.DEEPGRAM_LANGUAGE ?? "en-AU",
+        interim_results: true,
+        smart_format: true,
+        tier: "enhanced",
+        punctuate: true,
+      }),
+    });
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("Deepgram key request failed", text);
+      console.error("Deepgram listen request failed", text);
       return NextResponse.json(
-        { error: "Unable to obtain Deepgram access key." },
+        { error: "Unable to obtain Deepgram listen URL." },
         { status: 502 },
       );
     }
 
-    const data = (await response.json()) as { key?: string };
-    const key = data.key;
+    const data = (await response.json()) as { result?: { url?: string } };
+    const url = data.result?.url;
 
-    if (!key) {
+    if (!url) {
       return NextResponse.json(
-        { error: "Deepgram did not return an access key." },
+        { error: "Deepgram did not return a listen URL." },
         { status: 502 },
       );
     }
 
-    const params = new URLSearchParams({
-      model: "nova-3",
-      language: process.env.DEEPGRAM_LANGUAGE ?? "en-AU",
-      interim_results: "true",
-      smart_format: "true",
-      tier: "enhanced",
-      punctuate: "true",
-      access_token: key,
-    });
-
-    return NextResponse.json({
-      url: `wss://api.deepgram.com/v1/listen?${params.toString()}`,
-    });
+    return NextResponse.json({ url });
   } catch (error) {
     console.error("Deepgram token fetch error", error);
     return NextResponse.json(
