@@ -59,7 +59,7 @@ wss.on("connection", (client, request) => {
   }
 
   const deepgramUrl = new URL("wss://api.deepgram.com/v1/listen");
-  deepgramUrl.searchParams.set("model", "nova-2");
+  deepgramUrl.searchParams.set("model", "nova-3");
   deepgramUrl.searchParams.set("language", DEEPGRAM_LANGUAGE);
   deepgramUrl.searchParams.set("interim_results", "true");
   deepgramUrl.searchParams.set("smart_format", "true");
