@@ -8,6 +8,8 @@ const crypto = require("crypto");
 const PORT = process.env.PORT || 3000;
 const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
 const DEEPGRAM_LANGUAGE = process.env.DEEPGRAM_LANGUAGE || "en-AU";
+const DEEPGRAM_MODEL = process.env.RELAY_MODEL || "nova-3";
+const DEEPGRAM_TIER = process.env.RELAY_TIER;
 const RELAY_SHARED_SECRET = process.env.RELAY_SHARED_SECRET;
 const TOKEN_TTL_MS = Number(process.env.RELAY_TOKEN_TTL_MS ?? 30_000);
 
@@ -59,12 +61,14 @@ wss.on("connection", (client, request) => {
   }
 
   const deepgramUrl = new URL("wss://api.deepgram.com/v1/listen");
-  deepgramUrl.searchParams.set("model", "nova-3");
+  deepgramUrl.searchParams.set("model", DEEPGRAM_MODEL);
   deepgramUrl.searchParams.set("language", DEEPGRAM_LANGUAGE);
   deepgramUrl.searchParams.set("interim_results", "true");
   deepgramUrl.searchParams.set("smart_format", "true");
-  deepgramUrl.searchParams.set("tier", "enhanced");
   deepgramUrl.searchParams.set("punctuate", "true");
+  if (DEEPGRAM_TIER) {
+    deepgramUrl.searchParams.set("tier", DEEPGRAM_TIER);
+  }
 
   const dgSocket = new WebSocket(deepgramUrl.toString(), {
     headers: {
