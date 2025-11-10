@@ -97,7 +97,11 @@ export class DeepgramSpeechService implements SpeechService {
       }
     });
 
-    socket.addEventListener("close", () => {
+    socket.addEventListener("close", (event) => {
+      const friendlyError = this.describeCloseEvent(event);
+      if (friendlyError) {
+        this.emitError(friendlyError);
+      }
       this.emitStop();
       this.reset();
     });
@@ -199,5 +203,22 @@ export class DeepgramSpeechService implements SpeechService {
     for (const listener of this.stopListeners) {
       listener();
     }
+  }
+
+  private describeCloseEvent(event: CloseEvent): Error | null {
+    if (event.code === 4403 || event.reason === "deepgram_forbidden") {
+      return new Error(
+        "Deepgram denied access to the requested streaming model. Contact Deepgram to enable the nova tier for this key.",
+      );
+    }
+    if (event.code === 4401 || event.reason === "unauthorized") {
+      return new Error(
+        "Relay authorization failed. Refresh the page to obtain a new token.",
+      );
+    }
+    if (event.code === 1011 && event.reason === "deepgram_error") {
+      return new Error("Deepgram relay connection failed unexpectedly.");
+    }
+    return null;
   }
 }

@@ -121,6 +121,16 @@ wss.on("connection", (client, request) => {
     closeBoth(1011, "deepgram_error");
   });
 
+  dgSocket.on("unexpected-response", (_req, response) => {
+    const status = response?.statusCode;
+    console.error("Deepgram unexpected response", status);
+    if (status === 403) {
+      closeBoth(4403, "deepgram_forbidden");
+    } else {
+      closeBoth(1011, status ? `deepgram_${status}` : "deepgram_unexpected");
+    }
+  });
+
   dgSocket.on("close", () => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: "ended" }));
