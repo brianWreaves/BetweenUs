@@ -50,15 +50,25 @@ function validateSignature(ts, nonce, sig) {
 }
 
 wss.on("connection", (client, request) => {
+  const connectionId =
+    typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : crypto.randomBytes(16).toString("hex");
   const url = new URL(request.url, `http://${request.headers.host}`);
   const ts = url.searchParams.get("ts");
   const nonce = url.searchParams.get("nonce");
   const sig = url.searchParams.get("sig");
 
   if (!validateSignature(ts, nonce, sig)) {
+    console.warn(`[relay:${connectionId}] invalid signature, closing`);
     client.close(4401, "unauthorized");
     return;
   }
+
+  console.log(
+    `[relay:${connectionId}] client connected (model=${DEEPGRAM_MODEL}, tier=${DEEPGRAM_TIER ?? "none"})`,
+  );
+  let bytesForwarded = 0;
 
   const deepgramUrl = new URL("wss://api.deepgram.com/v1/listen");
   deepgramUrl.searchParams.set("model", DEEPGRAM_MODEL);
@@ -93,10 +103,19 @@ wss.on("connection", (client, request) => {
     if (dgSocket.readyState !== WebSocket.OPEN) {
       return;
     }
+    bytesForwarded += payload.length ?? 0;
+    if (bytesForwarded === payload.length) {
+      console.log(
+        `[relay:${connectionId}] received first audio chunk (${payload.length} bytes)`,
+      );
+    }
     dgSocket.send(payload);
   });
 
-  client.on("close", () => {
+  client.on("close", (code, reason) => {
+    console.log(
+      `[relay:${connectionId}] client closed code=${code} reason=${reason?.toString()} totalBytes=${bytesForwarded}`,
+    );
     if (dgSocket.readyState === WebSocket.OPEN) {
       dgSocket.close();
     }
@@ -108,6 +127,7 @@ wss.on("connection", (client, request) => {
   });
 
   dgSocket.on("open", () => {
+    console.log(`[relay:${connectionId}] Deepgram socket open`);
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: "ready" }));
     }
@@ -121,13 +141,13 @@ wss.on("connection", (client, request) => {
   });
 
   dgSocket.on("error", (error) => {
-    console.error("Deepgram socket error", error);
+    console.error(`[relay:${connectionId}] Deepgram socket error`, error);
     closeBoth(1011, "deepgram_error");
   });
 
   dgSocket.on("unexpected-response", (_req, response) => {
     const status = response?.statusCode;
-    console.error("Deepgram unexpected response", status);
+    console.error(`[relay:${connectionId}] Deepgram unexpected response`, status);
     if (status === 403) {
       closeBoth(4403, "deepgram_forbidden");
     } else {
@@ -135,7 +155,10 @@ wss.on("connection", (client, request) => {
     }
   });
 
-  dgSocket.on("close", () => {
+  dgSocket.on("close", (code, reason) => {
+    console.log(
+      `[relay:${connectionId}] Deepgram closed code=${code} reason=${reason?.toString()} bytesForwarded=${bytesForwarded}`,
+    );
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: "ended" }));
       client.close(1000, "deepgram_closed");
