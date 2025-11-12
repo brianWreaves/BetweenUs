@@ -4,6 +4,8 @@ const morgan = require("morgan");
 const http = require("http");
 const WebSocket = require("ws");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 
 const PORT = process.env.PORT || 3000;
 const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
@@ -14,6 +16,7 @@ const RELAY_SHARED_SECRET = process.env.RELAY_SHARED_SECRET;
 const DEEPGRAM_ENCODING = process.env.RELAY_ENCODING;
 const DEEPGRAM_SAMPLE_RATE = process.env.RELAY_SAMPLE_RATE;
 const TOKEN_TTL_MS = Number(process.env.RELAY_TOKEN_TTL_MS ?? 30_000);
+const AUDIO_DUMP_DIR = process.env.RELAY_AUDIO_DUMP_DIR;
 
 if (!DEEPGRAM_API_KEY) {
   throw new Error("DEEPGRAM_API_KEY is not set");
@@ -51,6 +54,20 @@ function validateSignature(ts, nonce, sig) {
   }
 }
 
+function dumpAudioChunk(connectionId, chunk) {
+  if (!AUDIO_DUMP_DIR) {
+    return;
+  }
+  try {
+    fs.mkdirSync(AUDIO_DUMP_DIR, { recursive: true });
+    const filePath = path.join(AUDIO_DUMP_DIR, `${connectionId}.webm`);
+    fs.writeFileSync(filePath, chunk);
+    console.log(`[relay:${connectionId}] wrote debug audio chunk to ${filePath}`);
+  } catch (error) {
+    console.error(`[relay:${connectionId}] failed to write debug audio`, error);
+  }
+}
+
 wss.on("connection", (client, request) => {
   const connectionId =
     typeof crypto.randomUUID === "function"
@@ -71,6 +88,7 @@ wss.on("connection", (client, request) => {
     `[relay:${connectionId}] client connected (model=${DEEPGRAM_MODEL}, tier=${DEEPGRAM_TIER ?? "none"})`,
   );
   let bytesForwarded = 0;
+  let wroteDebugChunk = false;
 
   const deepgramUrl = new URL("wss://api.deepgram.com/v1/listen");
   deepgramUrl.searchParams.set("model", DEEPGRAM_MODEL);
@@ -116,6 +134,10 @@ wss.on("connection", (client, request) => {
       console.log(
         `[relay:${connectionId}] received first audio chunk (${payload.length} bytes)`,
       );
+    }
+    if (AUDIO_DUMP_DIR && !wroteDebugChunk && Buffer.isBuffer(payload)) {
+      dumpAudioChunk(connectionId, payload);
+      wroteDebugChunk = true;
     }
     dgSocket.send(payload);
   });
