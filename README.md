@@ -93,6 +93,8 @@ Live streaming requires a lightweight relay that keeps the Deepgram API key serv
    - `DEEPGRAM_LANGUAGE` (optional, defaults to `en-AU`)
    - `RELAY_MODEL` (optional, defaults to `nova-3`; set to `nova-2` or legacy IDs if nova-3 isn’t available)
    - `RELAY_TIER` (optional, only needed for legacy models that still require a tier parameter)
+   - `RELAY_ENCODING` (optional, e.g. `opus` when streaming WebM/Opus audio)
+   - `RELAY_SAMPLE_RATE` (optional, e.g. `48000`)
    - `RELAY_SHARED_SECRET` (generate a strong random string; reuse the same value on Vercel/local).
 3. **Grab the relay URL** once Render deploys (e.g. `wss://betweenus-relay.onrender.com/stream`) and set it as `RELAY_WS_URL` in `.env.local` and Vercel.
 4. The Next.js client now requests signed URLs from `/api/relay-token`, connects to the Render relay, and the relay forwards audio to Deepgram with the required headers.

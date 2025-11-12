@@ -11,6 +11,8 @@ const DEEPGRAM_LANGUAGE = process.env.DEEPGRAM_LANGUAGE || "en-AU";
 const DEEPGRAM_MODEL = process.env.RELAY_MODEL || "nova-3";
 const DEEPGRAM_TIER = process.env.RELAY_TIER;
 const RELAY_SHARED_SECRET = process.env.RELAY_SHARED_SECRET;
+const DEEPGRAM_ENCODING = process.env.RELAY_ENCODING;
+const DEEPGRAM_SAMPLE_RATE = process.env.RELAY_SAMPLE_RATE;
 const TOKEN_TTL_MS = Number(process.env.RELAY_TOKEN_TTL_MS ?? 30_000);
 
 if (!DEEPGRAM_API_KEY) {
@@ -78,6 +80,12 @@ wss.on("connection", (client, request) => {
   deepgramUrl.searchParams.set("punctuate", "true");
   if (DEEPGRAM_TIER) {
     deepgramUrl.searchParams.set("tier", DEEPGRAM_TIER);
+  }
+  if (DEEPGRAM_ENCODING) {
+    deepgramUrl.searchParams.set("encoding", DEEPGRAM_ENCODING);
+  }
+  if (DEEPGRAM_SAMPLE_RATE) {
+    deepgramUrl.searchParams.set("sample_rate", DEEPGRAM_SAMPLE_RATE);
   }
 
   const dgSocket = new WebSocket(deepgramUrl.toString(), {
