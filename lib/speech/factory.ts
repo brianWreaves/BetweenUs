@@ -6,19 +6,12 @@ type SpeechServiceConfig = {
   fallbackScript: string[];
 };
 
-let cachedService: SpeechService | null = null;
-let cachedIsMock = true;
-
 export function getSpeechService(config: SpeechServiceConfig): SpeechService {
-  if (cachedService) {
-    return cachedService;
-  }
-
   if (
     typeof window !== "undefined" &&
     process.env.NEXT_PUBLIC_DEEPGRAM_ENABLED === "true"
   ) {
-    cachedService = new DeepgramSpeechService({
+    return new DeepgramSpeechService({
       getSocketUrl: async () => {
         const response = await fetch("/api/relay-token");
         if (!response.ok) {
@@ -31,20 +24,7 @@ export function getSpeechService(config: SpeechServiceConfig): SpeechService {
         return data.url;
       },
     });
-    cachedIsMock = false;
-    return cachedService;
   }
 
-  cachedService = createMockSpeechService(config.fallbackScript);
-  cachedIsMock = true;
-  return cachedService;
-}
-
-export function isUsingMockSpeech() {
-  return cachedIsMock;
-}
-
-export function resetSpeechService() {
-  cachedService = null;
-  cachedIsMock = true;
+  return createMockSpeechService(config.fallbackScript);
 }

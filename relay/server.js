@@ -17,6 +17,7 @@ const DEEPGRAM_ENCODING = process.env.RELAY_ENCODING;
 const DEEPGRAM_SAMPLE_RATE = process.env.RELAY_SAMPLE_RATE;
 const TOKEN_TTL_MS = Number(process.env.RELAY_TOKEN_TTL_MS ?? 30_000);
 const AUDIO_DUMP_DIR = process.env.RELAY_AUDIO_DUMP_DIR;
+const SHOULD_DUMP_AUDIO = Boolean(AUDIO_DUMP_DIR);
 
 if (!DEEPGRAM_API_KEY) {
   throw new Error("DEEPGRAM_API_KEY is not set");
@@ -54,15 +55,23 @@ function validateSignature(ts, nonce, sig) {
   }
 }
 
-function dumpAudioChunk(connectionId, chunk) {
-  if (!AUDIO_DUMP_DIR) {
+async function writeDebugAudio(connectionId, chunks) {
+  if (!SHOULD_DUMP_AUDIO || chunks.length === 0) {
     return;
   }
   try {
     fs.mkdirSync(AUDIO_DUMP_DIR, { recursive: true });
-    const filePath = path.join(AUDIO_DUMP_DIR, `${connectionId}.webm`);
-    fs.writeFileSync(filePath, chunk);
-    console.log(`[relay:${connectionId}] wrote debug audio chunk to ${filePath}`);
+    const filePath = path.join(
+      AUDIO_DUMP_DIR,
+      `${connectionId}-${Date.now()}.webm`,
+    );
+    const blob = new Blob(chunks, { type: "audio/webm" });
+    const arrayBuffer = await blob.arrayBuffer();
+    const combined = Buffer.from(arrayBuffer);
+    fs.writeFileSync(filePath, combined);
+    console.log(
+      `[relay:${connectionId}] wrote debug audio (${combined.length} bytes) to ${filePath}`,
+    );
   } catch (error) {
     console.error(`[relay:${connectionId}] failed to write debug audio`, error);
   }
@@ -88,7 +97,16 @@ wss.on("connection", (client, request) => {
     `[relay:${connectionId}] client connected (model=${DEEPGRAM_MODEL}, tier=${DEEPGRAM_TIER ?? "none"})`,
   );
   let bytesForwarded = 0;
-  let wroteDebugChunk = false;
+  const debugChunks = SHOULD_DUMP_AUDIO ? [] : null;
+  let wroteDebugFile = false;
+
+  const flushDebugAudio = () => {
+    if (!debugChunks || wroteDebugFile) {
+      return;
+    }
+    wroteDebugFile = true;
+    void writeDebugAudio(connectionId, debugChunks);
+  };
 
   const deepgramUrl = new URL("wss://api.deepgram.com/v1/listen");
   deepgramUrl.searchParams.set("model", DEEPGRAM_MODEL);
@@ -135,9 +153,8 @@ wss.on("connection", (client, request) => {
         `[relay:${connectionId}] received first audio chunk (${payload.length} bytes)`,
       );
     }
-    if (AUDIO_DUMP_DIR && !wroteDebugChunk && Buffer.isBuffer(payload)) {
-      dumpAudioChunk(connectionId, payload);
-      wroteDebugChunk = true;
+    if (debugChunks) {
+      debugChunks.push(Buffer.isBuffer(payload) ? payload : Buffer.from(payload));
     }
     dgSocket.send(payload);
   });
@@ -149,6 +166,7 @@ wss.on("connection", (client, request) => {
     if (dgSocket.readyState === WebSocket.OPEN) {
       dgSocket.close();
     }
+    flushDebugAudio();
   });
 
   client.on("error", (error) => {
@@ -189,6 +207,7 @@ wss.on("connection", (client, request) => {
     console.log(
       `[relay:${connectionId}] Deepgram closed code=${code} reason=${reason?.toString()} bytesForwarded=${bytesForwarded}`,
     );
+    flushDebugAudio();
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: "ended" }));
       client.close(1000, "deepgram_closed");
