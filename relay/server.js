@@ -14,7 +14,7 @@ const DEEPGRAM_MODEL = process.env.RELAY_MODEL || "nova-3";
 const DEEPGRAM_TIER = process.env.RELAY_TIER;
 const RELAY_SHARED_SECRET = process.env.RELAY_SHARED_SECRET;
 const DEEPGRAM_ENCODING = process.env.RELAY_ENCODING || "linear16";
-const DEEPGRAM_SAMPLE_RATE = process.env.RELAY_SAMPLE_RATE || "16000";
+const DEEPGRAM_SAMPLE_RATE = Number(process.env.RELAY_SAMPLE_RATE || "16000");
 const TOKEN_TTL_MS = Number(process.env.RELAY_TOKEN_TTL_MS ?? 30_000);
 const AUDIO_DUMP_DIR = process.env.RELAY_AUDIO_DUMP_DIR;
 const SHOULD_DUMP_AUDIO = Boolean(AUDIO_DUMP_DIR);
@@ -55,6 +55,27 @@ function validateSignature(ts, nonce, sig) {
   }
 }
 
+function createWavHeader(byteLength, sampleRate, numChannels, bitsPerSample) {
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const byteRate = sampleRate * blockAlign;
+  const buffer = Buffer.alloc(44);
+
+  buffer.write("RIFF", 0);
+  buffer.writeUInt32LE(36 + byteLength, 4);
+  buffer.write("WAVE", 8);
+  buffer.write("fmt ", 12);
+  buffer.writeUInt32LE(16, 16); // PCM chunk size
+  buffer.writeUInt16LE(1, 20); // Audio format PCM
+  buffer.writeUInt16LE(numChannels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(byteRate, 28);
+  buffer.writeUInt16LE(blockAlign, 32);
+  buffer.writeUInt16LE(bitsPerSample, 34);
+  buffer.write("data", 36);
+  buffer.writeUInt32LE(byteLength, 40);
+  return buffer;
+}
+
 async function writeDebugAudio(connectionId, chunks) {
   if (!SHOULD_DUMP_AUDIO || chunks.length === 0) {
     return;
@@ -63,14 +84,21 @@ async function writeDebugAudio(connectionId, chunks) {
     fs.mkdirSync(AUDIO_DUMP_DIR, { recursive: true });
     const filePath = path.join(
       AUDIO_DUMP_DIR,
-      `${connectionId}-${Date.now()}.webm`,
+      `${connectionId}-${Date.now()}.wav`,
     );
-    const blob = new Blob(chunks, { type: "audio/webm" });
-    const arrayBuffer = await blob.arrayBuffer();
-    const combined = Buffer.from(arrayBuffer);
-    fs.writeFileSync(filePath, combined);
+    const buffers = chunks.map((chunk) =>
+      Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+    );
+    const pcmData = Buffer.concat(buffers);
+    const header = createWavHeader(
+      pcmData.length,
+      DEEPGRAM_SAMPLE_RATE,
+      1,
+      16,
+    );
+    fs.writeFileSync(filePath, Buffer.concat([header, pcmData]));
     console.log(
-      `[relay:${connectionId}] wrote debug audio (${combined.length} bytes) to ${filePath}`,
+      `[relay:${connectionId}] wrote debug audio (${pcmData.length} bytes PCM) to ${filePath}`,
     );
   } catch (error) {
     console.error(`[relay:${connectionId}] failed to write debug audio`, error);
