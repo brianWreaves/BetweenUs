@@ -47,6 +47,7 @@ export class DeepgramSpeechService implements SpeechService {
   private audioProcessor: ScriptProcessorNode | null = null;
   private audioSource: MediaStreamAudioSourceNode | null = null;
   private readonly targetSampleRate = 16_000;
+  private keepAliveTimer: number | null = null;
 
   private resultListeners = new Set<SpeechResultListener>();
   private errorListeners = new Set<SpeechErrorListener>();
@@ -57,7 +58,7 @@ export class DeepgramSpeechService implements SpeechService {
   }
 
   async start(): Promise<void> {
-    if (this.socket || this.mediaRecorder) {
+    if (this.socket) {
       return;
     }
 
@@ -76,6 +77,10 @@ export class DeepgramSpeechService implements SpeechService {
     this.audioStream = stream;
 
     await this.startPcmProcessor(stream);
+
+    socket.addEventListener("open", () => {
+      this.startKeepAlive();
+    });
 
     socket.addEventListener("message", (event) => {
       try {
@@ -164,6 +169,7 @@ export class DeepgramSpeechService implements SpeechService {
       this.audioStream.getTracks().forEach((track) => track.stop());
       this.audioStream = null;
     }
+    this.stopKeepAlive();
     if (this.socket) {
       try {
         this.socket.close();
@@ -301,6 +307,23 @@ export class DeepgramSpeechService implements SpeechService {
       view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
     }
     return output;
+  }
+
+  private startKeepAlive() {
+    this.stopKeepAlive();
+    if (typeof window === "undefined") {
+      return;
+    }
+    this.keepAliveTimer = window.setInterval(() => {
+      this.sendSocketMessage({ type: "KeepAlive" });
+    }, 5_000);
+  }
+
+  private stopKeepAlive() {
+    if (this.keepAliveTimer !== null && typeof window !== "undefined") {
+      window.clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
   }
 
   private describeCloseEvent(event: CloseEvent): Error | null {
