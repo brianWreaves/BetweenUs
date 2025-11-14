@@ -32,11 +32,21 @@ export type DeepgramSpeechOptions = {
   getSocketUrl: () => Promise<string>;
 };
 
+type AudioContextConstructor = typeof AudioContext;
+
+type ExtendedWindow = Window &
+  typeof globalThis & {
+    webkitAudioContext?: AudioContextConstructor;
+  };
+
 export class DeepgramSpeechService implements SpeechService {
   private readonly options: DeepgramSpeechOptions;
   private socket: DeepgramSocket | null = null;
-  private mediaRecorder: MediaRecorder | null = null;
   private audioStream: MediaStream | null = null;
+  private audioContext: AudioContext | null = null;
+  private audioProcessor: ScriptProcessorNode | null = null;
+  private audioSource: MediaStreamAudioSourceNode | null = null;
+  private readonly targetSampleRate = 16_000;
 
   private resultListeners = new Set<SpeechResultListener>();
   private errorListeners = new Set<SpeechErrorListener>();
@@ -65,15 +75,7 @@ export class DeepgramSpeechService implements SpeechService {
     this.socket = socket;
     this.audioStream = stream;
 
-    if (typeof MediaRecorder === "undefined") {
-      throw new Error("MediaRecorder API is not supported in this browser.");
-    }
-
-    const recorder = new MediaRecorder(stream, {
-      mimeType: "audio/webm;codecs=opus",
-      audioBitsPerSecond: 128_000,
-    });
-    this.mediaRecorder = recorder;
+    await this.startPcmProcessor(stream);
 
     socket.addEventListener("message", (event) => {
       try {
@@ -110,20 +112,10 @@ export class DeepgramSpeechService implements SpeechService {
       this.emitError(new Error("Deepgram socket error"));
     });
 
-    recorder.addEventListener("dataavailable", (event) => {
-      if (!socket || event.data.size === 0 || socket.readyState !== WebSocket.OPEN) {
-        return;
-      }
-      socket.send(event.data);
-    });
-
-    recorder.start(250);
+    // PCM streaming begins via the audio processor inside startPcmProcessor
   }
 
   async stop(): Promise<void> {
-    if (this.mediaRecorder?.state === "recording") {
-      this.mediaRecorder.stop();
-    }
     this.sendSocketMessage({ type: "CloseStream" });
     this.reset();
     this.emitStop();
@@ -167,12 +159,7 @@ export class DeepgramSpeechService implements SpeechService {
   }
 
   private reset() {
-    if (this.mediaRecorder) {
-      if (this.mediaRecorder.state !== "inactive") {
-        this.mediaRecorder.stop();
-      }
-      this.mediaRecorder = null;
-    }
+    this.teardownAudioProcessing();
     if (this.audioStream) {
       this.audioStream.getTracks().forEach((track) => track.stop());
       this.audioStream = null;
@@ -203,6 +190,117 @@ export class DeepgramSpeechService implements SpeechService {
     for (const listener of this.stopListeners) {
       listener();
     }
+  }
+
+  private async startPcmProcessor(stream: MediaStream) {
+    if (typeof window === "undefined") {
+      throw new Error("AudioContext unavailable in this environment.");
+    }
+    const contextCtor =
+      window.AudioContext ??
+      (window as ExtendedWindow).webkitAudioContext ??
+      null;
+    if (!contextCtor) {
+      throw new Error("Web Audio API is not supported in this browser.");
+    }
+    const audioContext = new contextCtor();
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+    const source = audioContext.createMediaStreamSource(stream);
+    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    processor.onaudioprocess = (event) => {
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      const input = event.inputBuffer.getChannelData(0);
+      if (!input) {
+        return;
+      }
+      const downsampled = this.downsampleBuffer(
+        input,
+        audioContext.sampleRate,
+        this.targetSampleRate,
+      );
+      if (!downsampled || downsampled.length === 0) {
+        return;
+      }
+      const pcmBuffer = this.floatTo16BitPCM(downsampled);
+      this.socket.send(pcmBuffer);
+    };
+    source.connect(processor);
+    processor.connect(audioContext.destination);
+    this.audioContext = audioContext;
+    this.audioProcessor = processor;
+    this.audioSource = source;
+  }
+
+  private teardownAudioProcessing() {
+    if (this.audioProcessor) {
+      try {
+        this.audioProcessor.disconnect();
+      } catch {
+        /* noop */
+      }
+      this.audioProcessor.onaudioprocess = null;
+      this.audioProcessor = null;
+    }
+    if (this.audioSource) {
+      try {
+        this.audioSource.disconnect();
+      } catch {
+        /* noop */
+      }
+      this.audioSource = null;
+    }
+    if (this.audioContext) {
+      try {
+        void this.audioContext.close();
+      } catch {
+        /* noop */
+      }
+      this.audioContext = null;
+    }
+  }
+
+  private downsampleBuffer(
+    buffer: Float32Array,
+    inputSampleRate: number,
+    outputSampleRate: number,
+  ): Float32Array {
+    if (outputSampleRate === inputSampleRate) {
+      return buffer;
+    }
+    const sampleRateRatio = inputSampleRate / outputSampleRate;
+    const newLength = Math.floor(buffer.length / sampleRateRatio);
+    const result = new Float32Array(newLength);
+    let offsetResult = 0;
+    let offsetBuffer = 0;
+
+    while (offsetResult < result.length) {
+      const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+      let accum = 0;
+      let count = 0;
+      for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+        accum += buffer[i];
+        count++;
+      }
+      result[offsetResult] = count > 0 ? accum / count : 0;
+      offsetResult++;
+      offsetBuffer = nextOffsetBuffer;
+    }
+
+    return result;
+  }
+
+  private floatTo16BitPCM(buffer: Float32Array): ArrayBuffer {
+    const output = new ArrayBuffer(buffer.length * 2);
+    const view = new DataView(output);
+    for (let i = 0; i < buffer.length; i++) {
+      const s = Math.max(-1, Math.min(1, buffer[i]));
+      view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return output;
   }
 
   private describeCloseEvent(event: CloseEvent): Error | null {
