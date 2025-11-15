@@ -65,7 +65,7 @@ export function useConversation(
 
   const handleError = useCallback(
     (error: Error) => {
-      console.error("BetweenUs mock speech error", error);
+      console.error("BetweenUs speech error", error);
       setStatus("error");
       setDraft("");
     },

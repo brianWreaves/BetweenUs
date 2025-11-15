@@ -27,10 +27,15 @@ export default function Home() {
 
   const deepgramEnabled =
     process.env.NEXT_PUBLIC_DEEPGRAM_ENABLED === "true";
+  const modelOverride = process.env.NEXT_PUBLIC_MODEL_OVERRIDE;
 
   const speechService = useMemo(
-    () => getSpeechService({ fallbackScript: sampleTranscripts }),
-    [],
+    () =>
+      getSpeechService({
+        fallbackScript: sampleTranscripts,
+        modelOverride: modelOverride || undefined,
+      }),
+    [modelOverride],
   );
 
   const {

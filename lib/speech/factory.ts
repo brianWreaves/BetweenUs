@@ -4,6 +4,7 @@ import { DeepgramSpeechService } from "./deepgram-service";
 
 type SpeechServiceConfig = {
   fallbackScript: string[];
+  modelOverride?: string;
 };
 
 export function getSpeechService(config: SpeechServiceConfig): SpeechService {
@@ -13,7 +14,11 @@ export function getSpeechService(config: SpeechServiceConfig): SpeechService {
   ) {
     return new DeepgramSpeechService({
       getSocketUrl: async () => {
-        const response = await fetch("/api/relay-token");
+        const response = await fetch(
+          config.modelOverride
+            ? `/api/relay-token?model=${encodeURIComponent(config.modelOverride)}`
+            : "/api/relay-token",
+        );
         if (!response.ok) {
           throw new Error("Unable to obtain relay URL.");
         }
