@@ -30,8 +30,8 @@ export default function Home() {
   const [modelOverride, setModelOverride] = useState(
     process.env.NEXT_PUBLIC_MODEL_OVERRIDE ?? "",
   );
-  const [modelOverrideInput, setModelOverrideInput] = useState(
-    process.env.NEXT_PUBLIC_MODEL_OVERRIDE ?? "",
+  const [pendingModelOverride, setPendingModelOverride] = useState(
+    process.env.NEXT_PUBLIC_MODEL_OVERRIDE ?? "nova-3",
   );
 
   const speechService = useMemo(
@@ -50,6 +50,7 @@ export default function Home() {
     isListening,
     lastUpdatedAt,
     lastMessage,
+    lastError,
     start,
     stop,
     clear,
@@ -213,20 +214,38 @@ export default function Home() {
             <p className="mb-2 text-sm font-semibold text-slate-200">
               Debug Controls
             </p>
-            <label className="text-xs text-slate-400">
-              Model override (e.g., nova-2)
-            </label>
-            <input
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
-              value={modelOverrideInput}
-              onChange={(event) => setModelOverrideInput(event.target.value)}
-              placeholder="nova-3"
-            />
+            <div className="space-y-2 text-xs text-slate-300">
+              <p>Model override</p>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2">
+                <input
+                  type="radio"
+                  className="text-emerald-400 focus:ring-emerald-400"
+                  checked={pendingModelOverride === "nova-3"}
+                  onChange={() => setPendingModelOverride("nova-3")}
+                />
+                <span>Nova-3 (default)</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2">
+                <input
+                  type="radio"
+                  className="text-emerald-400 focus:ring-emerald-400"
+                  checked={pendingModelOverride === "nova-2"}
+                  onChange={() => setPendingModelOverride("nova-2")}
+                />
+                <span>Nova-2</span>
+              </label>
+            </div>
             <div className="mt-3 flex gap-2">
               <button
                 type="button"
                 className="rounded-full border border-emerald-600 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-600/20"
-                onClick={() => setModelOverride(modelOverrideInput.trim())}
+                onClick={() =>
+                  setModelOverride(
+                    pendingModelOverride === "nova-3"
+                      ? ""
+                      : pendingModelOverride.trim(),
+                  )
+                }
               >
                 Apply
               </button>
@@ -235,7 +254,7 @@ export default function Home() {
                 className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-800/50"
                 onClick={() => {
                   setModelOverride("");
-                  setModelOverrideInput("");
+                  setPendingModelOverride("nova-3");
                 }}
               >
                 Reset
@@ -244,6 +263,11 @@ export default function Home() {
             <p className="mt-2 text-xs text-slate-400">
               Current: {modelOverride ? modelOverride : "default (nova-3)"}.
             </p>
+            {lastError ? (
+              <p className="mt-3 rounded-lg border border-rose-800 bg-rose-900/50 px-3 py-2 text-xs text-rose-100">
+                {lastError}
+              </p>
+            ) : null}
           </div>
         </div>
         <div

@@ -30,6 +30,8 @@ type DeepgramSocket = WebSocket & {
 
 export type DeepgramSpeechOptions = {
   getSocketUrl: () => Promise<string>;
+  onRequestId?: (id: string) => void;
+  onFatalError?: (error: Error) => void;
 };
 
 type AudioContextConstructor = typeof AudioContext;
@@ -48,6 +50,7 @@ export class DeepgramSpeechService implements SpeechService {
   private audioSource: MediaStreamAudioSourceNode | null = null;
   private readonly targetSampleRate = 16_000;
   private keepAliveTimer: number | null = null;
+  private retriedAfterUnauthorized = false;
 
   private resultListeners = new Set<SpeechResultListener>();
   private errorListeners = new Set<SpeechErrorListener>();
@@ -61,63 +64,83 @@ export class DeepgramSpeechService implements SpeechService {
     if (this.socket) {
       return;
     }
+    this.retriedAfterUnauthorized = false;
 
     if (typeof navigator === "undefined" || !navigator.mediaDevices) {
       throw new Error("Media devices unavailable in this environment.");
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: false,
-    });
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
 
-    const socketUrl = await this.options.getSocketUrl();
-    const socket = await this.createSocket(socketUrl);
-    this.socket = socket;
-    this.audioStream = stream;
+      const socketUrl = await this.options.getSocketUrl();
+      const socket = await this.createSocket(socketUrl);
+      this.socket = socket;
+      this.audioStream = stream;
 
-    await this.startPcmProcessor(stream);
+      await this.startPcmProcessor(stream);
 
-    socket.addEventListener("open", () => {
-      this.startKeepAlive();
-    });
+      socket.addEventListener("open", () => {
+        this.startKeepAlive();
+      });
 
-    socket.addEventListener("message", (event) => {
-      try {
-        const payload = JSON.parse(event.data) as DeepgramTranscriptionEvent;
-        if (!payload.channel) {
+      socket.addEventListener("message", (event) => {
+        try {
+          const payload = JSON.parse(event.data) as DeepgramTranscriptionEvent;
+          if (!payload.channel) {
+            return;
+          }
+          const requestId = (payload as { metadata?: { request_id?: string } })
+            ?.metadata?.request_id;
+          if (requestId && this.options.onRequestId) {
+            this.options.onRequestId(requestId);
+          }
+          const transcript =
+            payload.channel.alternatives[0]?.transcript?.trim() ?? "";
+          if (!transcript) {
+            return;
+          }
+          this.emitResult({
+            text: transcript,
+            final: Boolean(payload.is_final),
+          });
+        } catch (error) {
+          this.emitError(
+            error instanceof Error ? error : new Error("Invalid Deepgram data"),
+          );
+        }
+      });
+
+      socket.addEventListener("close", (event) => {
+        if (event.code === 4401 && !this.retriedAfterUnauthorized) {
+          this.retriedAfterUnauthorized = true;
+          this.reset();
+          void this.start();
           return;
         }
-        const transcript =
-          payload.channel.alternatives[0]?.transcript?.trim() ?? "";
-        if (!transcript) {
-          return;
+        const friendlyError = this.describeCloseEvent(event);
+        if (friendlyError) {
+          this.emitError(friendlyError);
         }
-        this.emitResult({
-          text: transcript,
-          final: Boolean(payload.is_final),
-        });
-      } catch (error) {
-        this.emitError(
-          error instanceof Error ? error : new Error("Invalid Deepgram data"),
-        );
-      }
-    });
+        this.emitStop();
+        this.reset();
+      });
 
-    socket.addEventListener("close", (event) => {
-      const friendlyError = this.describeCloseEvent(event);
-      if (friendlyError) {
-        this.emitError(friendlyError);
-      }
-      this.emitStop();
+      socket.addEventListener("error", () => {
+        this.emitError(new Error("Deepgram socket error"));
+      });
+
+      // PCM streaming begins via the audio processor inside startPcmProcessor
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error("Unable to start");
+      this.options.onFatalError?.(err);
+      this.emitError(err);
       this.reset();
-    });
-
-    socket.addEventListener("error", () => {
-      this.emitError(new Error("Deepgram socket error"));
-    });
-
-    // PCM streaming begins via the audio processor inside startPcmProcessor
+      throw err;
+    }
   }
 
   async stop(): Promise<void> {

@@ -29,6 +29,7 @@ export function useConversation(
   const [draft, setDraft] = useState<string>("");
   const [status, setStatus] = useState<ConversationStatus>("idle");
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
 
 
   const appendFinalMessage = useCallback((text: string) => {
@@ -68,6 +69,7 @@ export function useConversation(
       console.error("BetweenUs speech error", error);
       setStatus("error");
       setDraft("");
+      setLastError(error.message);
     },
     [setStatus],
   );
@@ -124,6 +126,7 @@ export function useConversation(
     status,
     lastUpdatedAt,
     lastMessage,
+    lastError,
     isListening: status === "listening",
     start,
     stop,

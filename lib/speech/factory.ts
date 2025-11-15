@@ -14,19 +14,33 @@ export function getSpeechService(config: SpeechServiceConfig): SpeechService {
   ) {
     return new DeepgramSpeechService({
       getSocketUrl: async () => {
-        const response = await fetch(
-          config.modelOverride
-            ? `/api/relay-token?model=${encodeURIComponent(config.modelOverride)}`
-            : "/api/relay-token",
-        );
-        if (!response.ok) {
-          throw new Error("Unable to obtain relay URL.");
-        }
-        const data = (await response.json()) as { url?: string; error?: string };
-        if (!data.url) {
-          throw new Error(data.error ?? "Relay URL missing from response.");
-        }
-        return data.url;
+        const buildRequest = () =>
+          fetch(
+            config.modelOverride
+              ? `/api/relay-token?model=${encodeURIComponent(config.modelOverride)}`
+              : "/api/relay-token",
+          );
+
+        const tryFetch = async (): Promise<string> => {
+          const response = await buildRequest();
+          if (!response.ok) {
+            throw new Error("Unable to obtain relay URL.");
+          }
+          const data = (await response.json()) as { url?: string; error?: string };
+          if (!data.url) {
+            throw new Error(data.error ?? "Relay URL missing from response.");
+          }
+          return data.url;
+        };
+
+        const url = await tryFetch();
+        return url;
+      },
+      onRequestId: (id) => {
+        console.info("Deepgram request id:", id);
+      },
+      onFatalError: (error) => {
+        console.error("Deepgram fatal error:", error);
       },
     });
   }
