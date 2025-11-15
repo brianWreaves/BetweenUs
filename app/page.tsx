@@ -27,7 +27,12 @@ export default function Home() {
 
   const deepgramEnabled =
     process.env.NEXT_PUBLIC_DEEPGRAM_ENABLED === "true";
-  const modelOverride = process.env.NEXT_PUBLIC_MODEL_OVERRIDE;
+  const [modelOverride, setModelOverride] = useState(
+    process.env.NEXT_PUBLIC_MODEL_OVERRIDE ?? "",
+  );
+  const [modelOverrideInput, setModelOverrideInput] = useState(
+    process.env.NEXT_PUBLIC_MODEL_OVERRIDE ?? "",
+  );
 
   const speechService = useMemo(
     () =>
@@ -203,6 +208,44 @@ export default function Home() {
       </header>
 
       <main className="flex flex-1 flex-col px-6 py-10">
+        <div className="mb-6 flex flex-wrap gap-4">
+          <div className="w-full max-w-xs rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+            <p className="mb-2 text-sm font-semibold text-slate-200">
+              Debug Controls
+            </p>
+            <label className="text-xs text-slate-400">
+              Model override (e.g., nova-2)
+            </label>
+            <input
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
+              value={modelOverrideInput}
+              onChange={(event) => setModelOverrideInput(event.target.value)}
+              placeholder="nova-3"
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-emerald-600 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-600/20"
+                onClick={() => setModelOverride(modelOverrideInput.trim())}
+              >
+                Apply
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-800/50"
+                onClick={() => {
+                  setModelOverride("");
+                  setModelOverrideInput("");
+                }}
+              >
+                Reset
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Current: {modelOverride ? modelOverride : "default (nova-3)"}.
+            </p>
+          </div>
+        </div>
         <div
           className={cn(
             "mx-auto flex h-full w-full max-w-5xl flex-col transition-transform duration-300 ease-out",
