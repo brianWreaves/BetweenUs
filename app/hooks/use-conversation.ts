@@ -30,6 +30,7 @@ export function useConversation(
   const [status, setStatus] = useState<ConversationStatus>("idle");
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [lastRequestId, setLastRequestId] = useState<string | null>(null);
 
 
   const appendFinalMessage = useCallback((text: string) => {
@@ -127,6 +128,8 @@ export function useConversation(
     lastUpdatedAt,
     lastMessage,
     lastError,
+    lastRequestId,
+    setLastRequestId,
     isListening: status === "listening",
     start,
     stop,

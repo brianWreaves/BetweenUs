@@ -38,6 +38,7 @@ export function getSpeechService(config: SpeechServiceConfig): SpeechService {
       },
       onRequestId: (id) => {
         console.info("Deepgram request id:", id);
+        // Expose to UI via onStreamError/onFatalError is handled in page.tsx through useConversation.
       },
       onFatalError: (error) => {
         console.error("Deepgram fatal error:", error);

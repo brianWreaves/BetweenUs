@@ -32,6 +32,7 @@ export type DeepgramSpeechOptions = {
   getSocketUrl: () => Promise<string>;
   onRequestId?: (id: string) => void;
   onFatalError?: (error: Error) => void;
+  onStreamError?: (error: Error) => void;
 };
 
 type AudioContextConstructor = typeof AudioContext;
@@ -87,12 +88,18 @@ export class DeepgramSpeechService implements SpeechService {
         this.startKeepAlive();
       });
 
-      socket.addEventListener("message", (event) => {
+    socket.addEventListener("message", (event) => {
         try {
           const payload = JSON.parse(event.data) as DeepgramTranscriptionEvent;
-          if (!payload.channel) {
-            return;
+        if (!payload.channel) {
+          // Grab metadata-only frames for request IDs.
+          const requestId = (payload as { metadata?: { request_id?: string } })
+            ?.metadata?.request_id;
+          if (requestId && this.options.onRequestId) {
+            this.options.onRequestId(requestId);
           }
+          return;
+        }
           const requestId = (payload as { metadata?: { request_id?: string } })
             ?.metadata?.request_id;
           if (requestId && this.options.onRequestId) {
@@ -102,16 +109,24 @@ export class DeepgramSpeechService implements SpeechService {
             payload.channel.alternatives[0]?.transcript?.trim() ?? "";
           if (!transcript) {
             return;
-          }
-          this.emitResult({
-            text: transcript,
-            final: Boolean(payload.is_final),
-          });
-        } catch (error) {
-          this.emitError(
-            error instanceof Error ? error : new Error("Invalid Deepgram data"),
-          );
         }
+        const isFinal = Boolean(payload.is_final);
+        if (isFinal && (payload as { metadata?: { request_id?: string } })?.metadata?.request_id) {
+          const requestId = (payload as { metadata?: { request_id?: string } })
+            ?.metadata?.request_id;
+          if (requestId && this.options.onRequestId) {
+            this.options.onRequestId(requestId);
+          }
+        }
+        this.emitResult({
+          text: transcript,
+          final: isFinal,
+        });
+      } catch (error) {
+        this.emitError(
+          error instanceof Error ? error : new Error("Invalid Deepgram data"),
+        );
+      }
       });
 
       socket.addEventListener("close", (event) => {
@@ -124,6 +139,7 @@ export class DeepgramSpeechService implements SpeechService {
         const friendlyError = this.describeCloseEvent(event);
         if (friendlyError) {
           this.emitError(friendlyError);
+          this.options.onStreamError?.(friendlyError);
         }
         this.emitStop();
         this.reset();

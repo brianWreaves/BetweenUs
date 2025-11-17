@@ -51,6 +51,7 @@ export default function Home() {
     lastUpdatedAt,
     lastMessage,
     lastError,
+    lastRequestId,
     start,
     stop,
     clear,
@@ -266,6 +267,11 @@ export default function Home() {
             {lastError ? (
               <p className="mt-3 rounded-lg border border-rose-800 bg-rose-900/50 px-3 py-2 text-xs text-rose-100">
                 {lastError}
+              </p>
+            ) : null}
+            {lastRequestId ? (
+              <p className="mt-2 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-[11px] text-slate-200">
+                Request ID: {lastRequestId}
               </p>
             ) : null}
           </div>
