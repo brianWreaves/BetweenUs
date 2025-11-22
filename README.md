@@ -2,7 +2,7 @@
 
 # BetweenUs
 
-BetweenUs is a real-time speech-to-text companion built for people living with Motor Neurone Disease (MND). Spoken words are transcribed on-device and shown as large, flippable text blocks so conversation partners can keep up with face-to-face chats.
+BetweenUs is a real-time speech-to-text companion built for people living with difficulty speaking clearly from medical conditions such asMotor Neurone Disease (MND). Spoken words are transcribed on-device and shown as large, flippable text blocks so conversation partners can keep up with face-to-face chats.
 
 > **Phase 4 status (Training Logic & Data Flow)**  
 > ✅ MediaRecorder-powered audio capture with live timer feedback  
