@@ -1,50 +1,55 @@
-import type { SpeechService } from "./service";
-import { createMockSpeechService } from "./mock-service";
 import { DeepgramService } from "./deepgram-service";
+import { MicrophoneService } from "./microphone-service";
+import { type SpeechService, type SpeechServiceOptions } from "./speech-service";
 
-type SpeechServiceConfig = {
-  fallbackScript: string[];
-  modelOverride?: string;
-};
+export const getSpeechService = (
+  service: string,
+  options: SpeechServiceOptions,
+): SpeechService => {
+  if (service === "microphone") {
+    return new MicrophoneService(options);
+  }
 
-export function getSpeechService(config: SpeechServiceConfig): SpeechService {
   if (
-    typeof window !== "undefined" &&
+    service === "deepgram" &&
     process.env.NEXT_PUBLIC_DEEPGRAM_ENABLED === "true"
   ) {
-    return new DeepgramService({
+    return new DeepgramService({ // <-- This line is the critical fix
       getSocketUrl: async () => {
         const buildRequest = () =>
           fetch(
-            config.modelOverride
-              ? `/api/relay-token?model=${encodeURIComponent(config.modelOverride)}`
-              : "/api/relay-token",
+            `${
+              process.env.NEXT_PUBLIC_API_BASE_URL
+            }/api/deepgram-socket?apiKey=${encodeURIComponent(
+              options.apiKey || "",
+            )}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${options.apiKey}`,
+              },
+            },
           );
 
-        const tryFetch = async (): Promise<string> => {
-          const response = await buildRequest();
-          if (!response.ok) {
-            throw new Error("Unable to obtain relay URL.");
-          }
-          const data = (await response.json()) as { url?: string; error?: string };
-          if (!data.url) {
-            throw new Error(data.error ?? "Relay URL missing from response.");
-          }
-          return data.url;
-        };
+        let request = buildRequest();
 
-        const url = await tryFetch();
-        return url;
+        if (options.retry?.shouldRetry) {
+          const result = await options.retry.shouldRetry(request);
+          request = result.request;
+        }
+
+        const response = await request;
+
+        if (response.status === 200) {
+          const data = await response.json();
+          return data.url;
+        }
+        return null;
       },
-      onRequestId: (id) => {
-        console.info("Deepgram request id:", id);
-        // Expose to UI via onStreamError/onFatalError is handled in page.tsx through useConversation.
-      },
-      onFatalError: (error) => {
-        console.error("Deepgram fatal error:", error);
-      },
+      apiKey: options.apiKey,
+      retry: options.retry,
     });
   }
 
-  return createMockSpeechService(config.fallbackScript);
-}
+  throw new Error(`Unknown speech service: ${service}`);
+};
