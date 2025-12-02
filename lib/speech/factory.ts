@@ -1,6 +1,6 @@
 import type { SpeechService } from "./service";
 import { createMockSpeechService } from "./mock-service";
-import { DeepgramSpeechService } from "./deepgram-service";
+import { DeepgramService } from "./deepgram-service";
 
 type SpeechServiceConfig = {
   fallbackScript: string[];
@@ -12,7 +12,7 @@ export function getSpeechService(config: SpeechServiceConfig): SpeechService {
     typeof window !== "undefined" &&
     process.env.NEXT_PUBLIC_DEEPGRAM_ENABLED === "true"
   ) {
-    return new DeepgramSpeechService({
+    return new DeepgramService({
       getSocketUrl: async () => {
         const buildRequest = () =>
           fetch(
