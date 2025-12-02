@@ -1,6 +1,4 @@
 // public/pcm-processor.worklet.js
-// AudioWorklet processor for PCM encoding and downsampling
-
 class PCMProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -9,10 +7,9 @@ class PCMProcessor extends AudioWorkletProcessor {
     this.buffer = new Float32Array(this.bufferSize);
     this.bufferIndex = 0;
     this.downsampleRatio = sampleRate / this.targetSampleRate;
-    this.lastOutputSample = 0;
   }
 
-  process(inputs, outputs) {
+  process(inputs, outputs, parameters) {
     const input = inputs[0];
     if (!input || !input[0]) {
       return true;
@@ -34,16 +31,13 @@ class PCMProcessor extends AudioWorkletProcessor {
   flushBuffer() {
     if (this.bufferIndex === 0) return;
 
-    // Downsample
     const downsampled = this.downsample(
       this.buffer.subarray(0, this.bufferIndex),
       this.downsampleRatio
     );
 
-    // Convert to 16-bit PCM
     const pcmBuffer = this.floatTo16BitPCM(downsampled);
 
-    // Send to main thread
     this.port.postMessage(pcmBuffer, [pcmBuffer.buffer]);
 
     this.bufferIndex = 0;
@@ -62,11 +56,7 @@ class PCMProcessor extends AudioWorkletProcessor {
       let accum = 0;
       let count = 0;
 
-      for (
-        let i = offsetBuffer;
-        i < nextOffsetBuffer && i < buffer.length;
-        i++
-      ) {
+      for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
         accum += buffer[i];
         count++;
       }
@@ -93,4 +83,4 @@ class PCMProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("pcm-processor", PCMProcessor);
+registerProcessor('pcm-processor', PCMProcessor);
