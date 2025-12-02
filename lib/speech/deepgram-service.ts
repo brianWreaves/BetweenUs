@@ -47,9 +47,8 @@ export class DeepgramSpeechService implements SpeechService {
   private socket: DeepgramSocket | null = null;
   private audioStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
-  private audioProcessor: ScriptProcessorNode | null = null;
+  private audioWorklet: AudioWorkletNode | null = null;
   private audioSource: MediaStreamAudioSourceNode | null = null;
-  private readonly targetSampleRate = 16_000;
   private keepAliveTimer: number | null = null;
   private retriedAfterUnauthorized = false;
 
@@ -73,7 +72,11 @@ export class DeepgramSpeechService implements SpeechService {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: false,
       });
 
@@ -82,51 +85,48 @@ export class DeepgramSpeechService implements SpeechService {
       this.socket = socket;
       this.audioStream = stream;
 
-      await this.startPcmProcessor(stream);
+      await this.startAudioWorklet(stream);
 
       socket.addEventListener("open", () => {
         this.startKeepAlive();
       });
 
-    socket.addEventListener("message", (event) => {
+      socket.addEventListener("message", (event) => {
         try {
           const payload = JSON.parse(event.data) as DeepgramTranscriptionEvent;
-        if (!payload.channel) {
-          // Grab metadata-only frames for request IDs.
-          const requestId = (payload as { metadata?: { request_id?: string } })
-            ?.metadata?.request_id;
-          if (requestId && this.options.onRequestId) {
-            this.options.onRequestId(requestId);
+          if (!payload.channel) {
+            const requestId = (payload as { metadata?: { request_id?: string } })
+              ?.metadata?.request_id;
+            if (requestId && this.options.onRequestId) {
+              this.options.onRequestId(requestId);
+            }
+            return;
           }
-          return;
-        }
-          const requestId = (payload as { metadata?: { request_id?: string } })
-            ?.metadata?.request_id;
-          if (requestId && this.options.onRequestId) {
-            this.options.onRequestId(requestId);
-          }
+
           const transcript =
             payload.channel.alternatives[0]?.transcript?.trim() ?? "";
           if (!transcript) {
             return;
-        }
-        const isFinal = Boolean(payload.is_final);
-        if (isFinal && (payload as { metadata?: { request_id?: string } })?.metadata?.request_id) {
-          const requestId = (payload as { metadata?: { request_id?: string } })
-            ?.metadata?.request_id;
-          if (requestId && this.options.onRequestId) {
-            this.options.onRequestId(requestId);
           }
+
+          const isFinal = Boolean(payload.is_final);
+          if (isFinal && (payload as { metadata?: { request_id?: string } })?.metadata?.request_id) {
+            const requestId = (payload as { metadata?: { request_id?: string } })
+              ?.metadata?.request_id;
+            if (requestId && this.options.onRequestId) {
+              this.options.onRequestId(requestId);
+            }
+          }
+
+          this.emitResult({
+            text: transcript,
+            final: isFinal,
+          });
+        } catch (error) {
+          this.emitError(
+            error instanceof Error ? error : new Error("Invalid Deepgram data"),
+          );
         }
-        this.emitResult({
-          text: transcript,
-          final: isFinal,
-        });
-      } catch (error) {
-        this.emitError(
-          error instanceof Error ? error : new Error("Invalid Deepgram data"),
-        );
-      }
       });
 
       socket.addEventListener("close", (event) => {
@@ -148,8 +148,6 @@ export class DeepgramSpeechService implements SpeechService {
       socket.addEventListener("error", () => {
         this.emitError(new Error("Deepgram socket error"));
       });
-
-      // PCM streaming begins via the audio processor inside startPcmProcessor
     } catch (error) {
       const err = error instanceof Error ? error : new Error("Unable to start");
       this.options.onFatalError?.(err);
@@ -237,10 +235,11 @@ export class DeepgramSpeechService implements SpeechService {
     }
   }
 
-  private async startPcmProcessor(stream: MediaStream) {
+  private async startAudioWorklet(stream: MediaStream) {
     if (typeof window === "undefined") {
       throw new Error("AudioContext unavailable in this environment.");
     }
+
     const contextCtor =
       window.AudioContext ??
       (window as ExtendedWindow).webkitAudioContext ??
@@ -248,47 +247,50 @@ export class DeepgramSpeechService implements SpeechService {
     if (!contextCtor) {
       throw new Error("Web Audio API is not supported in this browser.");
     }
+
     const audioContext = new contextCtor();
     if (audioContext.state === "suspended") {
       await audioContext.resume();
     }
+
+    // Load the AudioWorklet processor
+    try {
+      await audioContext.audioWorklet.addModule("/pcm-processor.worklet.js");
+    } catch (error) {
+      throw new Error("Failed to load PCM processor worklet");
+    }
+
     const source = audioContext.createMediaStreamSource(stream);
-    const processor = audioContext.createScriptProcessor(4096, 1, 1);
-    processor.onaudioprocess = (event) => {
+    const workletNode = new AudioWorkletNode(audioContext, "pcm-processor");
+
+    // Handle PCM data from the worklet
+    workletNode.port.onmessage = (event) => {
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
         return;
       }
-      const input = event.inputBuffer.getChannelData(0);
-      if (!input) {
-        return;
+      const pcmBuffer = event.data;
+      if (pcmBuffer && pcmBuffer.byteLength > 0) {
+        this.socket.send(pcmBuffer);
       }
-      const downsampled = this.downsampleBuffer(
-        input,
-        audioContext.sampleRate,
-        this.targetSampleRate,
-      );
-      if (!downsampled || downsampled.length === 0) {
-        return;
-      }
-      const pcmBuffer = this.floatTo16BitPCM(downsampled);
-      this.socket.send(pcmBuffer);
     };
-    source.connect(processor);
-    processor.connect(audioContext.destination);
+
+    source.connect(workletNode);
+    workletNode.connect(audioContext.destination);
+
     this.audioContext = audioContext;
-    this.audioProcessor = processor;
+    this.audioWorklet = workletNode;
     this.audioSource = source;
   }
 
   private teardownAudioProcessing() {
-    if (this.audioProcessor) {
+    if (this.audioWorklet) {
       try {
-        this.audioProcessor.disconnect();
+        this.audioWorklet.disconnect();
+        this.audioWorklet.port.onmessage = null;
       } catch {
         /* noop */
       }
-      this.audioProcessor.onaudioprocess = null;
-      this.audioProcessor = null;
+      this.audioWorklet = null;
     }
     if (this.audioSource) {
       try {
@@ -306,46 +308,6 @@ export class DeepgramSpeechService implements SpeechService {
       }
       this.audioContext = null;
     }
-  }
-
-  private downsampleBuffer(
-    buffer: Float32Array,
-    inputSampleRate: number,
-    outputSampleRate: number,
-  ): Float32Array {
-    if (outputSampleRate === inputSampleRate) {
-      return buffer;
-    }
-    const sampleRateRatio = inputSampleRate / outputSampleRate;
-    const newLength = Math.floor(buffer.length / sampleRateRatio);
-    const result = new Float32Array(newLength);
-    let offsetResult = 0;
-    let offsetBuffer = 0;
-
-    while (offsetResult < result.length) {
-      const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
-      let accum = 0;
-      let count = 0;
-      for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
-        accum += buffer[i];
-        count++;
-      }
-      result[offsetResult] = count > 0 ? accum / count : 0;
-      offsetResult++;
-      offsetBuffer = nextOffsetBuffer;
-    }
-
-    return result;
-  }
-
-  private floatTo16BitPCM(buffer: Float32Array): ArrayBuffer {
-    const output = new ArrayBuffer(buffer.length * 2);
-    const view = new DataView(output);
-    for (let i = 0; i < buffer.length; i++) {
-      const s = Math.max(-1, Math.min(1, buffer[i]));
-      view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-    }
-    return output;
   }
 
   private startKeepAlive() {
@@ -373,7 +335,7 @@ export class DeepgramSpeechService implements SpeechService {
     }
     if (event.code === 4401 || event.reason === "unauthorized") {
       return new Error(
-        "Relay authorization failed. Refresh the page to obtain a new token.",
+        "Relay authorisation failed. Refresh the page to obtain a new token.",
       );
     }
     if (event.code === 1011 && event.reason === "deepgram_error") {
