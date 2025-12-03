@@ -1,11 +1,21 @@
-// lib/speech/types.ts
+export enum SpeechServiceStatus {
+  Stopped = "Stopped",
+  Started = "Started",
+  Initializing = "Initializing",
+  Error = "Error",
+}
 
-export type SpeechServiceKey = "microphone" | "deepgram";
+export interface RetryPolicy {
+  shouldRetry: (request: Promise<Response>) => Promise<{ request: Promise<Response>; shouldContinue: boolean; }>;
+}
 
-export interface SpeechService {
-  start: () => Promise<void>;
-  stop: () => Promise<void>;
-  onResult: (cb: (text: string) => void) => void;
-  onError: (cb: (err: Error) => void) => void;
-  onStop: (cb: () => void) => void;
+export interface SpeechServiceOptions {
+  fallbackScript?: string;
+  modelOverride?: string;
+  apiKey?: string;
+  retry?: RetryPolicy;
+}
+
+export interface DeepgramOptions extends SpeechServiceOptions {
+  getSocketUrl: () => Promise<string | null>;
 }
