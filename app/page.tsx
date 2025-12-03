@@ -1,9 +1,11 @@
 "use client";
 
-import { Message, sampleTranscripts } from "../lib/chat"; // <-- CORRECTED PATH: Changed "@/lib/chat" to "../lib/chat"
-import { type SpeechService } from "../lib/speech/speech-service";
+import { Message, sampleTranscripts } from "../lib/chat";
+import { type SpeechService } from "../lib/speech/speechService";
 import { getSpeechService } from "../lib/speech/factory";
 import { SpeechServiceStatus } from "../lib/speech/types";
+// REMOVED LUCIDE-REACT IMPORTS TO ISOLATE BUILD ERROR
+/*
 import {
   AudioIcon,
   CheckIcon,
@@ -12,6 +14,7 @@ import {
   Volume2Icon,
   VolumeXIcon,
 } from "lucide-react";
+*/
 import {
   KeyboardEvent,
   useCallback,
@@ -20,6 +23,21 @@ import {
   useRef,
   useState,
 } from "react";
+
+// --- TEMPORARY PLACEHOLDER COMPONENT FOR ICON REMOVAL ---
+// Using basic emojis and text spans to replace the imported icons.
+const Icon = ({ children, className }: { children: React.ReactNode, className?: string }) => (
+    <span className={`inline-block ${className}`}>{children}</span>
+);
+
+const CheckIcon = (props: any) => <Icon {...props}>✅</Icon>;
+const MicIcon = (props: any) => <Icon {...props}>🎤</Icon>;
+const CornerDownLeftIcon = (props: any) => <Icon {...props}>↵</Icon>;
+const Volume2Icon = (props: any) => <Icon {...props}>🔊</Icon>;
+const VolumeXIcon = (props: any) => <Icon {...props}>🔇</Icon>;
+const AudioIcon = (props: any) => <Icon {...props}>🎧</Icon>;
+// --------------------------------------------------------
+
 
 const getModelOverride = (messages: Message[]) => {
   const lastMessage = messages[messages.length - 1];
