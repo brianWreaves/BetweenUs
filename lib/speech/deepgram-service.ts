@@ -1,34 +1,41 @@
+"use client";
+
 import { Deepgram } from "@deepgram/sdk";
-import type { SpeechService } from "./speech-service";
+import type { SpeechService } from "./speechService";
 import type { DeepgramOptions } from "./types";
+import { type DeepgramLiveTranscriptionEvents } from "@deepgram/sdk/dist/main/lib/types";
 
 export class DeepgramService implements SpeechService {
-  private dg: Deepgram;
-  private onResultHandler: ((text: string) => void) | null = null;
-  private onErrorHandler: ((err: Error) => void) | null = null;
-  private onStopHandler: (() => void) | null = null;
+  private readonly deepgram: Deepgram;
+  private readonly apiKey: string;
 
-  constructor(private options: DeepgramOptions) {
-    this.dg = new Deepgram(options.apiKey);
+  constructor(options: DeepgramOptions) {
+    if (options.apiKey) {
+      this.deepgram = new Deepgram(options.apiKey);
+      this.apiKey = options.apiKey;
+    } else {
+      throw new Error("Deepgram API key is missing");
+    }
   }
 
-  async start() {
-    // placeholder — Deepgram streaming goes here when needed
+  // Implementation placeholders for the SpeechService interface
+  public start() {
+    console.log("DeepgramService: start called (Placeholder)");
   }
 
-  async stop() {
-    if (this.onStopHandler) this.onStopHandler();
+  public stop() {
+    console.log("DeepgramService: stop called (Placeholder)");
   }
 
-  onResult(handler: (text: string) => void) {
-    this.onResultHandler = handler;
+  public onResult(handler: (data: any) => void) {
+    console.log("DeepgramService: onResult handler registered (Placeholder)");
   }
 
-  onError(handler: (err: Error) => void) {
-    this.onErrorHandler = handler;
+  public onError(handler: (error: Error) => void) {
+    console.log("DeepgramService: onError handler registered (Placeholder)");
   }
 
-  onStop(handler: () => void) {
-    this.onStopHandler = handler;
+  public onStop(handler: () => void) {
+    console.log("DeepgramService: onStop handler registered (Placeholder)");
   }
 }
