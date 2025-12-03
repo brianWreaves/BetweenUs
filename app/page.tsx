@@ -1,9 +1,9 @@
 "use client";
 
-import { Message, sampleTranscripts } from "@/lib/chat";
-import { type SpeechService } from "../lib/speech/speech-service"; // Corrected Path
-import { getSpeechService } from "../lib/speech/factory"; // Corrected Path
-import { SpeechServiceStatus } from "../lib/speech/types"; // Corrected Path
+import { Message, sampleTranscripts } from "../lib/chat"; // <-- CORRECTED PATH: Changed "@/lib/chat" to "../lib/chat"
+import { type SpeechService } from "../lib/speech/speech-service";
+import { getSpeechService } from "../lib/speech/factory";
+import { SpeechServiceStatus } from "../lib/speech/types";
 import {
   AudioIcon,
   CheckIcon,
