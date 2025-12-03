@@ -8,16 +8,22 @@ import type { SpeechServiceKey } from "../lib/speech/types";
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>(sampleTranscripts);
 
-  const startService = async () => {
-    const serviceKey: SpeechServiceKey = "microphone"; // or "deepgram"
+  const handleStart = async () => {
+    const serviceKey: SpeechServiceKey = "microphone"; // or “deepgram”
     const service = getSpeechService(serviceKey, { apiKey: process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY });
 
-    service.onResult((text) => {
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), text, author: "User" }]);
+    service.onResult((text: string) => {
+      const newMsg: Message = { id: crypto.randomUUID(), text, author: "User" };
+      setMessages((prev) => [...prev, newMsg]);
     });
 
-    service.onError((e) => console.error("Speech error:", e));
-    service.onStop(() => console.log("Speech stopped"));
+    service.onError((err: Error) => {
+      console.error("Speech error:", err);
+    });
+
+    service.onStop(() => {
+      console.log("Speech stopped");
+    });
 
     await service.start();
   };
@@ -32,7 +38,7 @@ export default function Page() {
         </p>
       ))}
 
-      <button onClick={startService} style={{ marginTop: 20 }}>
+      <button onClick={handleStart} style={{ marginTop: 20 }}>
         Start Speech
       </button>
     </main>
