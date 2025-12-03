@@ -1,9 +1,9 @@
 "use client";
 
 import { Message, sampleTranscripts } from "@/lib/chat";
-import { type SpeechService } from "@/lib/speech/speech-service";
-import { getSpeechService } from "@/lib/speech/factory";
-import { SpeechServiceStatus } from "@/lib/speech/types";
+import { type SpeechService } from "../lib/speech/speech-service"; // <-- CORRECTED PATH
+import { getSpeechService } from "../lib/speech/factory"; // <-- CORRECTED PATH
+import { SpeechServiceStatus } from "../lib/speech/types"; // <-- CORRECTED PATH
 import {
   AudioIcon,
   CheckIcon,
@@ -65,7 +65,7 @@ export default function Home() {
 
   const speechService = useMemo(
     () =>
-      getSpeechService(speechServiceKey, { // <-- CORRECTED LINE (Added speechServiceKey)
+      getSpeechService(speechServiceKey, {
         fallbackScript: sampleTranscripts,
         modelOverride: modelOverride || undefined,
       }),
