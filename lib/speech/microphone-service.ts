@@ -1,30 +1,40 @@
-import type { SpeechService } from "./speech-service";
-import type { SpeechServiceOptions } from "./types";
+"use client";
+
+import { type SpeechService, type SpeechServiceOptions } from "./speechService";
 
 export class MicrophoneService implements SpeechService {
-  private onResultHandler: ((text: string) => void) | null = null;
-  private onErrorHandler: ((err: Error) => void) | null = null;
-  private onStopHandler: (() => void) | null = null;
-
-  constructor(private options: SpeechServiceOptions) {}
-
-  async start() {
-    // placeholder microphone implementation
+  constructor(options: SpeechServiceOptions) {
+    // Microphone service specific initialization if needed
+    console.log("MicrophoneService initialized with options:", options);
   }
 
-  async stop() {
-    if (this.onStopHandler) this.onStopHandler();
+  // Required by SpeechService interface
+  public start() {
+    console.log("MicrophoneService: start called (Placeholder)");
+    // TODO: Add logic to start microphone access
   }
 
-  onResult(handler: (text: string) => void) {
-    this.onResultHandler = handler;
+  // Required by SpeechService interface
+  public stop() {
+    console.log("MicrophoneService: stop called (Placeholder)");
+    // TODO: Add logic to stop microphone access
   }
 
-  onError(handler: (err: Error) => void) {
-    this.onErrorHandler = handler;
+  // Required by SpeechService interface
+  public onResult(handler: (data: any) => void) {
+    console.log("MicrophoneService: onResult handler registered (Placeholder)");
+    // TODO: Add logic to register the result handler
   }
 
-  onStop(handler: () => void) {
-    this.onStopHandler = handler;
+  // Required by SpeechService interface
+  public onError(handler: (error: Error) => void) {
+    console.log("MicrophoneService: onError handler registered (Placeholder)");
+    // TODO: Add logic to register the error handler
+  }
+
+  // Required by SpeechService interface
+  public onStop(handler: () => void) {
+    console.log("MicrophoneService: onStop handler registered (Placeholder)");
+    // TODO: Add logic to register the stop handler
   }
 }
