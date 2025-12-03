@@ -1,372 +1,240 @@
 "use client";
 
+import { Message, sampleTranscripts } from "@/lib/chat";
+import { type SpeechService } from "@/lib/speech/speech-service";
+import { getSpeechService } from "@/lib/speech/factory";
+import { SpeechServiceStatus } from "@/lib/speech/types";
 import {
+  AudioIcon,
+  CheckIcon,
+  CornerDownLeftIcon,
+  MicIcon,
+  Volume2Icon,
+  VolumeXIcon,
+} from "lucide-react";
+import {
+  KeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { StorageStatusCard } from "./components/storage-status-card";
-import { getSpeechService } from "@/lib/speech/factory";
-import { useConversation } from "./hooks/use-conversation";
 
-const sampleTranscripts: string[] = [];
+const getModelOverride = (messages: Message[]) => {
+  const lastMessage = messages[messages.length - 1];
+  if (lastMessage?.role === "function") {
+    try {
+      const toolCallId = lastMessage.content.trim();
+      const nextMessage = messages[messages.length - 2];
+      const toolCall = nextMessage.tool_calls?.find(
+        (tc) => tc.id === toolCallId,
+      );
+      if (
+        toolCall &&
+        toolCall.function.name === "set_model" &&
+        toolCall.function.arguments
+      ) {
+        return JSON.parse(toolCall.function.arguments).model;
+      }
+    } catch (e) {
+      console.error(e);
+      return undefined;
+    }
+  }
+  return undefined;
+};
 
 export default function Home() {
-  const router = useRouter();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isPartnerView, setIsPartnerView] = useState(false);
-  const [enforcePortrait, setEnforcePortrait] = useState(false);
-  const [isPortrait, setIsPortrait] = useState(true);
-  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const menuContainerRef = useRef<HTMLDivElement | null>(null);
-  const micButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [speechServiceKey, setSpeechServiceKey] = useState<string>("deepgram");
+  const [volume, setVolume] = useState<number>(1);
+  const [modelOverride, setModelOverride] = useState<string | undefined>(
+    undefined,
+  );
+  const [status, setStatus] = useState<SpeechServiceStatus>(
+    SpeechServiceStatus.Stopped,
+  );
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
-  const deepgramEnabled =
-    process.env.NEXT_PUBLIC_DEEPGRAM_ENABLED === "true";
-  const [modelOverride, setModelOverride] = useState(
-    process.env.NEXT_PUBLIC_MODEL_OVERRIDE ?? "",
-  );
-  const [pendingModelOverride, setPendingModelOverride] = useState(
-    process.env.NEXT_PUBLIC_MODEL_OVERRIDE ?? "nova-3",
-  );
+  const handleMessage = useCallback((message: Message) => {
+    setMessages((prev) => [...prev, message]);
+  }, []);
 
   const speechService = useMemo(
     () =>
-      getSpeechService({
+      getSpeechService(speechServiceKey, { // <-- CORRECTED LINE (Added speechServiceKey)
         fallbackScript: sampleTranscripts,
         modelOverride: modelOverride || undefined,
       }),
-    [modelOverride],
+    [speechServiceKey, modelOverride],
   );
 
-  const {
-    messages,
-    draft,
-    status,
-    isListening,
-    lastUpdatedAt,
-    lastMessage,
-    lastError,
-    lastRequestId,
-    start,
-    stop,
-    clear,
-  } = useConversation(speechService, {
-    initialMessages: deepgramEnabled ? [] : sampleTranscripts,
-  });
-
-  const handleContinueTraining = useCallback(() => {
-    router.push("/training");
-  }, [router]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
+  const start = useCallback(() => {
+    if (statusRef.current === SpeechServiceStatus.Started) {
+      speechService.stop();
+      setStatus(SpeechServiceStatus.Stopped);
       return;
     }
-    const coarseQuery = window.matchMedia("(pointer: coarse)");
-    const evaluate = () => {
-      const hasTouchPoints = (navigator.maxTouchPoints ?? 0) > 0;
-      setEnforcePortrait(coarseQuery.matches || hasTouchPoints);
-    };
-    evaluate();
+    speechService.start();
+    setStatus(SpeechServiceStatus.Started);
+  }, [speechService]);
 
-    if (typeof coarseQuery.addEventListener === "function") {
-      coarseQuery.addEventListener("change", evaluate);
-      return () => coarseQuery.removeEventListener("change", evaluate);
-    }
-    coarseQuery.addListener(evaluate);
-    return () => coarseQuery.removeListener(evaluate);
-  }, []);
-
-  useEffect(() => {
-    if (!enforcePortrait) {
-      return;
-    }
-
-    if (typeof window === "undefined") {
-      return;
-    }
-    const query = window.matchMedia("(orientation: portrait)");
-    const update = () => setIsPortrait(query.matches);
-    update();
-
-    if (typeof query.addEventListener === "function") {
-      query.addEventListener("change", update);
-      return () => query.removeEventListener("change", update);
-    }
-    query.addListener(update);
-    return () => query.removeListener(update);
-  }, [enforcePortrait]);
-
-  useEffect(() => {
-    const prefersPrecisePointer = (() => {
-      if (typeof window === "undefined") {
-        return false;
-      }
-      return window.matchMedia("(pointer: fine)").matches;
-    })();
-
-    if (prefersPrecisePointer && micButtonRef.current) {
-      micButtonRef.current.focus({ preventScroll: true });
+  const onStop = useCallback(() => {
+    if (statusRef.current === SpeechServiceStatus.Started) {
+      setStatus(SpeechServiceStatus.Stopped);
     }
   }, []);
 
-  useEffect(() => {
-    const prefersPrecisePointer =
-      typeof window !== "undefined" &&
-      window.matchMedia("(pointer: fine)").matches;
-    if (prefersPrecisePointer && micButtonRef.current) {
-      micButtonRef.current.focus({ preventScroll: true });
-    }
-  }, [isListening]);
-
-  useEffect(() => {
-    if (!isMenuOpen) return;
-
-    function handleClick(event: MouseEvent) {
-      const target = event.target as Node;
-      const container = menuContainerRef.current;
-      if (!container || container.contains(target)) {
-        return;
+  const onResult = useCallback(
+    (data: any) => {
+      if (data.is_final) {
+        handleMessage({ role: "user", content: data.speech_to_text });
       }
-      setIsMenuOpen(false);
-    }
+    },
+    [handleMessage],
+  );
 
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsMenuOpen(false);
+  const onError = useCallback((error: Error) => {
+    console.error(error);
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (
+      e: React.FormEvent<HTMLFormElement> | undefined,
+      message: string | undefined = input,
+    ) => {
+      e?.preventDefault();
+      if (!message || message.trim() === "") return;
+
+      if (speechService.start) speechService.stop();
+
+      const newMessage: Message = { role: "user", content: message };
+      setMessages((prev) => [...prev, newMessage]);
+      setInput("");
+
+      const currentModelOverride = getModelOverride([...messages, newMessage]);
+
+      setModelOverride(currentModelOverride);
+    },
+    [input, messages, speechService],
+  );
+
+  useEffect(() => {
+    if (speechService.onResult) speechService.onResult(onResult);
+    if (speechService.onError) speechService.onError(onError);
+    if (speechService.onStop) speechService.onStop(onStop);
+  }, [onError, onResult, onStop, speechService]);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit(undefined);
       }
-    }
-
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [isMenuOpen]);
-
-  const handleMicToggle = useCallback(() => {
-    if (isListening) {
-      void stop();
-    } else {
-      void start();
-    }
-  }, [isListening, start, stop]);
-
-  const handleClear = useCallback(() => {
-    clear();
-  }, [clear]);
+    },
+    [handleSubmit],
+  );
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
-      {enforcePortrait && !isPortrait ? (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-slate-950 px-8 text-center text-slate-200">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">
-            Portrait only
-          </p>
-          <p className="max-w-xs text-sm text-slate-300">
-            Rotate your device upright to continue using BetweenUs.
-          </p>
-        </div>
-      ) : null}
-      <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/70 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
-          <div className="relative" ref={menuContainerRef}>
-            <button
-              type="button"
-              className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
-              onClick={() => setIsMenuOpen((current) => !current)}
-              aria-haspopup="dialog"
-              aria-expanded={isMenuOpen}
-              ref={menuButtonRef}
+    <main className="flex flex-col h-full items-center justify-center p-4">
+      <h1 className="text-3xl font-bold mb-6">BetweenUs</h1>
+      <div className="flex-grow w-full max-w-2xl overflow-y-auto space-y-4 mb-4 p-4 border rounded-lg bg-white shadow-inner">
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 italic">
+            Start a conversation by typing a message or pressing the mic button.
+          </div>
+        ) : (
+          messages.map((message, index) => (
+            <div
+              key={index}
+              className={`p-2 rounded-lg ${
+                message.role === "user"
+                  ? "bg-blue-100 self-end ml-auto"
+                  : "bg-gray-100 self-start mr-auto"
+              }`}
             >
-              Menu
-            </button>
-            {isMenuOpen ? (
-              <div className="absolute left-0 top-full z-30 mt-3 w-80 max-w-[calc(100vw-3rem)] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-xl shadow-slate-950/60">
-                <div className="max-h-[70vh] overflow-y-auto p-4">
-                  <StorageStatusCard />
-                </div>
-              </div>
-            ) : null}
-          </div>
-          <span className="text-sm font-semibold uppercase tracking-[0.4em] text-slate-300">
-            Logo
-          </span>
-          <button
-            type="button"
-            className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white"
-            onClick={() => setIsPartnerView((current) => !current)}
-            aria-pressed={isPartnerView}
-          >
-            Flip
-          </button>
-        </div>
-      </header>
+              <span className="font-semibold capitalize">
+                {message.role}:
+              </span>{" "}
+              {message.content}
+            </div>
+          ))
+        )}
+      </div>
 
-      <main className="flex flex-1 flex-col px-6 py-10">
-        <div className="mb-6 flex flex-wrap gap-4">
-          <div className="w-full max-w-xs rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-            <p className="mb-2 text-sm font-semibold text-slate-200">
-              Debug Controls
-            </p>
-            <div className="space-y-2 text-xs text-slate-300">
-              <p>Model override</p>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2">
-                <input
-                  type="radio"
-                  className="text-emerald-400 focus:ring-emerald-400"
-                  checked={pendingModelOverride === "nova-3"}
-                  onChange={() => setPendingModelOverride("nova-3")}
-                />
-                <span>Nova-3 (default)</span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2">
-                <input
-                  type="radio"
-                  className="text-emerald-400 focus:ring-emerald-400"
-                  checked={pendingModelOverride === "nova-2"}
-                  onChange={() => setPendingModelOverride("nova-2")}
-                />
-                <span>Nova-2</span>
-              </label>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                className="rounded-full border border-emerald-600 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-600/20"
-                onClick={() =>
-                  setModelOverride(
-                    pendingModelOverride === "nova-3"
-                      ? ""
-                      : pendingModelOverride.trim(),
-                  )
-                }
-              >
-                Apply
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-800/50"
-                onClick={() => {
-                  setModelOverride("");
-                  setPendingModelOverride("nova-3");
-                }}
-              >
-                Reset
-              </button>
-            </div>
-            <p className="mt-2 text-xs text-slate-400">
-              Current: {modelOverride ? modelOverride : "default (nova-3)"}.
-            </p>
-            {lastError ? (
-              <p className="mt-3 rounded-lg border border-rose-800 bg-rose-900/50 px-3 py-2 text-xs text-rose-100">
-                {lastError}
-              </p>
-            ) : null}
-            {lastRequestId ? (
-              <p className="mt-2 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-[11px] text-slate-200">
-                Request ID: {lastRequestId}
-              </p>
-            ) : null}
-          </div>
+      <form onSubmit={handleSubmit} className="w-full max-w-2xl flex space-x-2">
+        <div className="relative flex-grow">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message..."
+            className="w-full p-3 border rounded-lg focus:ring-blue-500 focus:border-blue-500 pr-12"
+            disabled={status === SpeechServiceStatus.Started}
+          />
+          <CornerDownLeftIcon className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
         </div>
-        <div
-          className={cn(
-            "mx-auto flex h-full w-full max-w-5xl flex-col transition-transform duration-300 ease-out",
-            isPartnerView ? "rotate-180" : "rotate-0",
-          )}
+
+        <button
+          type="button"
+          onClick={start}
+          className={`p-3 rounded-lg text-white transition-colors duration-200 ${
+            status === SpeechServiceStatus.Started
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-green-500 hover:bg-green-600"
+          }`}
+          title={status === SpeechServiceStatus.Started ? "Stop Recording" : "Start Recording"}
         >
-          <div className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-slate-400">
-            <span>
-              {status === "connecting"
-                ? "Connecting…"
-                : status === "listening"
-                  ? "Listening"
-                  : status === "error"
-                    ? "Microphone error"
-                    : "Tap start to begin"}
-            </span>
-            {lastUpdatedAt ? (
-              <span>
-                Updated {new Date(lastUpdatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex-1 space-y-6 overflow-y-auto py-6">
-            {messages.map((message) => (
-              <p
-                key={message.id}
-                className="text-4xl font-semibold leading-tight text-white"
-              >
-                {message.text}
-              </p>
-            ))}
-            {draft ? (
-              <p className="text-4xl font-semibold leading-tight text-emerald-200">
-                {draft}
-              </p>
-            ) : messages.length === 0 ? (
-              <p className="text-lg text-slate-400">
-                Press MIC Start to capture speech here. Text will appear live as you speak.
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </main>
+          {status === SpeechServiceStatus.Started ? (
+            <CheckIcon className="h-6 w-6" />
+          ) : (
+            <MicIcon className="h-6 w-6" />
+          )}
+        </button>
 
-      <footer className="sticky bottom-0 z-20 border-t border-slate-800 bg-slate-950/80 px-4 py-4 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold transition hover:border-slate-500 hover:text-white"
-            onClick={handleContinueTraining}
+        <button
+          type="button"
+          onClick={() => setVolume(volume === 1 ? 0 : 1)}
+          className="p-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          title={volume === 1 ? "Mute" : "Unmute"}
+        >
+          {volume === 1 ? (
+            <Volume2Icon className="h-6 w-6 text-gray-700" />
+          ) : (
+            <VolumeXIcon className="h-6 w-6 text-gray-700" />
+          )}
+        </button>
+
+        <select
+          value={speechServiceKey}
+          onChange={(e) => setSpeechServiceKey(e.target.value)}
+          className="p-3 border rounded-lg bg-white shadow-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          title="Select Speech Service"
+        >
+          <option value="deepgram">Deepgram</option>
+          <option value="microphone">Microphone</option>
+        </select>
+      </form>
+
+      <div className="mt-4 text-sm text-gray-600 flex items-center space-x-2">
+        <AudioIcon className="h-4 w-4" />
+        <span>
+          Status:{" "}
+          <span
+            className={`font-semibold ${
+              status === SpeechServiceStatus.Started
+                ? "text-green-600"
+                : "text-red-600"
+            }`}
           >
-            Continue Training
-          </button>
-          <div className="flex items-center gap-3">
-            {messages.length > 0 || draft ? (
-              <button
-                type="button"
-                className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold transition hover:border-slate-500 hover:text-white"
-                onClick={handleClear}
-              >
-                Clear
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className={cn(
-                "rounded-full px-4 py-3 text-sm font-semibold transition",
-                isListening
-                  ? "bg-rose-600 text-white hover:bg-rose-500"
-                  : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400",
-              )}
-              onClick={handleMicToggle}
-              ref={micButtonRef}
-            >
-              {isListening ? "MIC Stop" : "MIC Start"}
-            </button>
-          </div>
-          <div className="flex flex-1 flex-col items-end">
-            {status === "error" ? (
-              <p className="text-xs text-rose-300">
-                Microphone unavailable — check permissions and try again.
-              </p>
-            ) : null}
-            {lastMessage ? (
-              <p className="mt-2 text-right text-xs text-slate-400">
-                Last message: {lastMessage}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </footer>
-    </div>
+            {status}
+          </span>
+        </span>
+      </div>
+    </main>
   );
 }
